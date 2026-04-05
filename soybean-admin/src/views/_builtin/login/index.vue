@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { getPaletteColorByNumber, mixColor } from '@sa/color';
 import { $t } from '@/locales';
 import { localStg } from '@/utils/storage';
+import { fetchOAuthTicketToken } from '@/service/api/auth';
 import { useAppStore } from '@/store/modules/app';
 import { useAuthStore } from '@/store/modules/auth';
 import { useThemeStore } from '@/store/modules/theme';
@@ -47,6 +48,23 @@ const bgColor = computed(() => {
   return mixColor(COLOR_WHITE, themeStore.themeColor, ratio);
 });
 
+async function consumeOAuthTicket(ticket: string) {
+  await authStore.loginByOAuthTicket(ticket, true);
+
+  if (localStg.get('token')) {
+    return true;
+  }
+
+  const { data, error } = await fetchOAuthTicketToken(ticket);
+  if (!error && data?.token) {
+    localStg.set('token', data.token);
+    window.location.replace('/#/');
+    return true;
+  }
+
+  return false;
+}
+
 onMounted(async () => {
   let shouldReplaceQuery = false;
   const rawSearchQuery = Object.fromEntries(new URLSearchParams(window.location.search).entries());
@@ -69,10 +87,13 @@ onMounted(async () => {
       await router.replace({ path: route.path, query: q, hash: route.hash });
       return;
     }
-    await authStore.loginByOAuthTicket(oauthTicket, true);
+    const consumed = await consumeOAuthTicket(oauthTicket);
     delete q.oauth_ticket;
     delete q.oauth_provider;
     delete q.oauth_error;
+    if (!consumed) {
+      window.$message?.error($t('api.RequestError'));
+    }
     await router.replace({ path: route.path, query: q, hash: route.hash });
     return;
   }
