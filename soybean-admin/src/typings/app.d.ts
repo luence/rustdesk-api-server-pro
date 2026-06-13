@@ -456,6 +456,11 @@ declare namespace App {
             copy: string;
             copyAll: string;
             copyTemplate: string;
+            showQr: string;
+            qrTitle: string;
+            qrTip: string;
+            qrPayload: string;
+            qrFailed: string;
             refresh: string;
             clearCacheReload: string;
             cacheTtlHint: string;
@@ -659,6 +664,7 @@ declare namespace App {
         PasswordEmpty: string;
         UserAddSuccess: string;
         DataError: string;
+        RequestError: string;
         UserUpdateSuccess: string;
         UserDeleteSuccess: string;
         SessionKillSuccess: string;

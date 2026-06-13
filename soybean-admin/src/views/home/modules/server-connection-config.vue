@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import QRCode from 'qrcode';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { fetchServerConfig, fetchServerConnectivity } from '@/service/api/home';
@@ -82,6 +83,10 @@ const checkingConnectivity = ref(false);
 const checkingConnectivityKey = ref<ConfigKey | ''>('');
 const loadError = ref('');
 const showKey = ref(false);
+const qrModalVisible = ref(false);
+const qrLoading = ref(false);
+const qrImageUrl = ref('');
+const qrPayload = ref('');
 const lastLoadedAt = ref(0);
 const lastLoadSource = ref<ConfigLoadSource>('');
 const lastConnectivityCheckedAt = ref(0);
@@ -418,6 +423,38 @@ async function copyRustDeskTemplate() {
   await copyValue(buildRustDeskTemplateText(), t('page.home.serverConfig.copyTemplate'));
 }
 
+async function showRustDeskTemplateQr() {
+  if (hasMissingRequired.value) {
+    window.$message?.warning(t('page.home.serverConfig.missingTip', { fields: missingKeys.value.join(' / ') }));
+    return;
+  }
+
+  qrLoading.value = true;
+  qrModalVisible.value = true;
+  qrImageUrl.value = '';
+  qrPayload.value = buildRustDeskTemplateText();
+  try {
+    qrImageUrl.value = await QRCode.toDataURL(qrPayload.value, {
+      errorCorrectionLevel: 'M',
+      margin: 2,
+      width: 320,
+      color: {
+        dark: '#111827',
+        light: '#ffffffff'
+      }
+    });
+  } catch {
+    qrModalVisible.value = false;
+    window.$message?.error(t('page.home.serverConfig.qrFailed'));
+  } finally {
+    qrLoading.value = false;
+  }
+}
+
+async function copyQrPayload() {
+  await copyValue(qrPayload.value, t('page.home.serverConfig.qrPayload'));
+}
+
 async function clearCacheAndReload() {
   clearServerConfigCache();
   resetConnectivityState();
@@ -580,6 +617,9 @@ watch(
         <NButton size="small" secondary :disabled="!canCopyAll" @click="copyRustDeskTemplate">
           {{ $t('page.home.serverConfig.copyTemplate') }}
         </NButton>
+        <NButton size="small" type="info" secondary :disabled="!canCopyAll" @click="showRustDeskTemplateQr">
+          {{ $t('page.home.serverConfig.showQr') }}
+        </NButton>
         <NButton size="small" type="primary" secondary :disabled="!canCopyAll" @click="copyAllConfig">
           {{ $t('page.home.serverConfig.copyAll') }}
         </NButton>
@@ -664,6 +704,31 @@ watch(
         </div>
       </div>
     </NSpace>
+    <NModal v-model:show="qrModalVisible" preset="card" :title="$t('page.home.serverConfig.qrTitle')" class="qr-modal">
+      <NSpace vertical :size="12" align="center">
+        <NSpin :show="qrLoading">
+          <div class="qr-preview">
+            <img v-if="qrImageUrl" :src="qrImageUrl" :alt="$t('page.home.serverConfig.qrTitle')" class="qr-image" />
+          </div>
+        </NSpin>
+        <div class="qr-tip">{{ $t('page.home.serverConfig.qrTip') }}</div>
+        <NInput
+          :value="qrPayload"
+          type="textarea"
+          readonly
+          :autosize="{ minRows: 2, maxRows: 4 }"
+          class="qr-payload"
+        />
+        <NSpace :size="8" justify="center">
+          <NButton size="small" secondary :disabled="!qrPayload" @click="copyQrPayload">
+            {{ $t('page.home.serverConfig.copyTemplate') }}
+          </NButton>
+          <NButton size="small" type="primary" secondary @click="qrModalVisible = false">
+            {{ $t('common.close') }}
+          </NButton>
+        </NSpace>
+      </NSpace>
+    </NModal>
   </NCard>
 </template>
 
@@ -720,6 +785,40 @@ watch(
   gap: 12px;
   font-size: 12px;
   color: var(--n-text-color-3);
+}
+
+.qr-modal {
+  width: min(420px, calc(100vw - 32px));
+}
+
+.qr-preview {
+  display: grid;
+  width: 336px;
+  max-width: calc(100vw - 72px);
+  min-height: 336px;
+  place-items: center;
+  border: 1px solid var(--n-border-color);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.qr-image {
+  width: 320px;
+  max-width: calc(100vw - 88px);
+  height: auto;
+  display: block;
+}
+
+.qr-tip {
+  max-width: 336px;
+  color: var(--n-text-color-2);
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.qr-payload {
+  width: 100%;
 }
 
 /* Keep card title horizontal and avoid character-by-character wrapping */

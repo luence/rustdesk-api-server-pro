@@ -85,5 +85,12 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.build.outputs.tag_name }}
-          generate_release_notes: true
+          generate_release_notes: false
+          body: |
+            本次发布已完成项目功能更新和构建产物生成。
+
+            主要内容：
+            - 更新 RustDesk 客户端兼容目标。
+            - 优化管理后台功能体验。
+            - 生成多平台部署包。
           files: release-assets/*.zip

@@ -361,6 +361,8 @@ rustdesk-api-server-pro sync
 
 ## 文档索引
 
+- 项目详细描述：`docs/PROJECT_DESCRIPTION.md`
+- 经验教训与项目偏好：`docs/LESSONS_LEARNED.md`
 - 使用说明：`docs/USAGE.md`
 - Docker 说明：`docs/DOCKER.md`
 - 端口说明：`docs/PORTS.md`
