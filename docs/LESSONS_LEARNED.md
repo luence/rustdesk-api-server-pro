@@ -29,4 +29,5 @@
 - GHCR package 如果已存在且未授权当前仓库 Actions 写入，即使 workflow 配置了 `packages: write` 也会在推送阶段返回 `write_package` 权限拒绝。
 - 默认 push 触发只做 Docker 镜像构建验证，不自动推送 GHCR，避免因为外部 Package 权限导致主分支红叉。
 - 发布 `v*.*.*` 标签时应自动构建并推送 GHCR `latest`、版本标签和 sha 标签，否则 Docker 用户拉取 `latest` 拿不到新后端和新 `dist`。
+- 如果仓库已经配置了带 `write:packages` 权限的 `GHCR_TOKEN`，Docker 登录应优先使用该 secret；未配置时再回退到 `GITHUB_TOKEN`。
 - 需要发布 GHCR 镜像时，先在 GitHub Package 设置中授予本仓库写入权限，或配置带 `write:packages` 权限的有效发布令牌，再手动触发工作流并选择推送镜像。
