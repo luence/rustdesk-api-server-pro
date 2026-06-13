@@ -50,7 +50,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
+          password: ${{ vars.GHCR_USE_PAT == 'true' && secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: 生成镜像标签
         id: meta
