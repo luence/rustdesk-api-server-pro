@@ -19,6 +19,66 @@ env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/rustdesk-api-server-pro
 
 jobs:
+  build-linux-amd64-package:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, 'release v1.4.8')
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 配置 pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: 配置 Go 环境
+        uses: actions/setup-go@v5
+        with:
+          go-version: '>=1.23.1'
+          cache: false
+
+      - name: 安装打包工具
+        run: |
+          sudo apt update
+          sudo apt install zip -y
+
+      - name: 构建前端 dist
+        env:
+          VITE_APP_VERSION: ${{ env.RELEASE_TAG }}
+        run: |
+          cd soybean-admin
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: 构建 Linux amd64 发布包
+        env:
+          GOOS: linux
+          GOARCH: amd64
+          CGO_ENABLED: 0
+        run: |
+          rm -rf build release-assets
+          mkdir -p build release-assets
+          go build -C backend -o ../build/rustdesk-api-server-pro .
+          cp -R soybean-admin/dist build/dist
+          cp backend/server.yaml build/server.yaml
+          cp docker/update-openwrt-one-container.sh build/update-openwrt-one-container.sh
+          cp docs/OPENWRT_ONE_CONTAINER.md build/OPENWRT_ONE_CONTAINER.md
+          cp docs/DOCKER.md build/DOCKER.md
+          chmod +x build/rustdesk-api-server-pro build/update-openwrt-one-container.sh
+          zip -r release-assets/rustdesk-api-server-pro-${{ env.RELEASE_TAG }}-linux-amd64.zip build
+
+      - name: 上传 Linux amd64 发布包
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-linux-amd64
+          path: release-assets/*.zip
+          if-no-files-found: error
+
   build-docker:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, 'release v1.4.8')
     runs-on: ubuntu-latest
@@ -64,8 +124,14 @@ jobs:
   release:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, 'release v1.4.8')
     runs-on: ubuntu-latest
-    needs: [build-docker]
+    needs: [build-linux-amd64-package, build-docker]
     steps:
+      - name: 下载发布包
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
       - name: 创建 GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -84,7 +150,11 @@ jobs:
             - 修正 raw 配置下载地址为默认分支 `main`。
             - 同步推送 GHCR 镜像标签：`latest`、`${{ env.RELEASE_TAG }}` 和 `sha-*`。
 
+            发布包：
+            - `rustdesk-api-server-pro-${{ env.RELEASE_TAG }}-linux-amd64.zip`：Linux amd64 二进制、前端 dist、示例配置和 OpenWrt 对齐脚本。
+
             升级提示：
             - 当前镜像已内置管理后台前端，不再需要单独 `rustdesk-web` 容器。
             - 从旧部署升级时，建议删除或停用旧 `rustdesk-web`，避免旧 dist 干扰新版登录页。
             - OpenWrt 用户可直接执行文档中的一键脚本，默认数据目录为 `/mnt/docker/rustdesk-api`。
+          files: release-assets/*.zip
