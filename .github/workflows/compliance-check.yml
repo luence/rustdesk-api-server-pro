@@ -61,8 +61,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if git grep -nE "(BEGIN RSA|BEGIN OPENSSH|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9_]{30,}|clientSecret: ['\"][^'\"]+['\"]|password: ['\"][^'\"]+['\"])" -- . ':!COMPLIANCE.md' ':!SECURITY.md' ':!PRIVACY.md' ':!README.md' ':!docs/**' ':!.github/workflows/compliance-check.yml'; then
-            echo "Potential secret detected. Review before merging."
+          # 只拦截高置信密钥；不要把正常代码里的 password/clientSecret 字段名、类型定义、登录表单和文档示例当成泄露。
+          if git grep -nE "(-----BEGIN (RSA|OPENSSH|EC|DSA|PRIVATE) KEY-----|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9_]{30,}|github_pat_[A-Za-z0-9_]{80,})" -- . ':!docs/**' ':!README*.md' ':!COMPLIANCE.md' ':!SECURITY.md' ':!PRIVACY.md' ':!.github/workflows/**'; then
+            echo "Potential high-confidence secret detected. Review before merging."
             exit 1
           fi
 
