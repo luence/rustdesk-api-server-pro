@@ -1,0 +1,67 @@
+name: 依赖清单
+run-name: 依赖清单：${{ github.ref_name }}
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+    branches: ["main", "master"]
+  schedule:
+    - cron: "17 3 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '>=1.23.1'
+          cache: false
+
+      - name: 配置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 配置 pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: 生成 Go 依赖清单
+        run: |
+          mkdir -p compliance-artifacts
+          cd backend
+          go list -m all > ../compliance-artifacts/go-modules.txt
+
+      - name: 生成前端依赖和许可证清单
+        run: |
+          cd soybean-admin
+          pnpm install --frozen-lockfile
+          pnpm list --depth 20 > ../compliance-artifacts/npm-dependencies.txt || true
+          pnpm licenses list > ../compliance-artifacts/npm-licenses.txt || true
+
+      - name: 复制合规文件
+        run: |
+          cp LICENSE compliance-artifacts/
+          cp NOTICE compliance-artifacts/
+          cp THIRD_PARTY_NOTICES.md compliance-artifacts/
+          cp DISCLAIMER.md compliance-artifacts/
+          cp SECURITY.md compliance-artifacts/
+          cp PRIVACY.md compliance-artifacts/
+          cp COMPLIANCE.md compliance-artifacts/
+
+      - name: 上传依赖清单
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-inventory
+          path: compliance-artifacts
+          if-no-files-found: error
