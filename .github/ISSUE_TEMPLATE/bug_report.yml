@@ -1,0 +1,73 @@
+name: Bug report
+description: Report a reproducible bug without sharing secrets
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Remove secrets, tokens, databases, uploaded recordings and personal data before posting.
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Release tag, image tag, or commit SHA.
+      placeholder: v1.4.8 or sha-xxxxxxx
+    validations:
+      required: true
+  - type: dropdown
+    id: deploy
+    attributes:
+      label: Deployment mode
+      options:
+        - Docker
+        - Docker Compose
+        - OpenWrt Docker
+        - Binary
+        - Source build
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS / Architecture
+      placeholder: OpenWrt x86_64, Ubuntu amd64, Windows amd64
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Provide clear steps.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs
+      description: Remove secrets, IPs, tokens, passwords and user data where possible.
+      render: shell
+    validations:
+      required: false
+  - type: checkboxes
+    id: compliance
+    attributes:
+      label: Safety checklist
+      options:
+        - label: I removed passwords, tokens, OAuth secrets, SMTP credentials and private keys.
+          required: true
+        - label: I did not upload server.db, production server.yaml, uploaded recordings or personal data.
+          required: true
