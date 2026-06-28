@@ -63,6 +63,16 @@ jobs:
           cp NOTICE build/
           cp THIRD_PARTY_NOTICES.md build/
           cp DISCLAIMER.md build/
+          cp SECURITY.md build/
+          cp PRIVACY.md build/
+          cp COMPLIANCE.md build/
+          cp CONTRIBUTING.md build/
+          cp CODE_OF_CONDUCT.md build/
+          cp SUPPORT.md build/
+          mkdir -p build/docs
+          cp docs/LEGAL_COMPLIANCE.md build/docs/LEGAL_COMPLIANCE.md
+          cp docs/DOCKER.md build/docs/DOCKER.md
+          cp docs/OPENWRT_ONE_CONTAINER.md build/docs/OPENWRT_ONE_CONTAINER.md
 
       - name: 打包文件
         run: |
@@ -97,14 +107,14 @@ jobs:
 
             主要内容：
             - 生成 Linux、Windows、macOS 的 amd64 和 arm64 部署包。
-            - 部署包包含后端二进制、管理后台 dist、示例配置以及许可证/第三方声明文件。
+            - 部署包包含后端二进制、管理后台 dist、示例配置、Docker/OpenWrt 文档以及许可证/合规声明文件。
             - Docker 镜像发布工作流会在 tag 发布时同步推送 GHCR `latest`、版本标签和 sha 标签。
             - 本项目是独立兼容实现，不是 RustDesk、Huawei、HarmonyOS、OpenHarmony 或其他第三方厂商的官方项目。
 
             合规提示：
             - 本项目使用 AGPL-3.0。若修改后通过网络向用户提供服务，应按 AGPL-3.0 提供对应源码。
             - 发布包中不应包含生产数据库、生产 server.yaml、OAuth 密钥、SMTP 密码、日志、录屏文件或其他敏感数据。
-            - 第三方组件和商标说明见仓库中的 `NOTICE`、`THIRD_PARTY_NOTICES.md` 和 `DISCLAIMER.md`。
+            - 第三方组件、商标、隐私、安全和发布合规说明见仓库中的 `NOTICE`、`THIRD_PARTY_NOTICES.md`、`DISCLAIMER.md`、`SECURITY.md`、`PRIVACY.md`、`COMPLIANCE.md`。
 
             升级提示：
             - 请同时替换后端程序和管理后台 dist 静态资源，并重启服务。
