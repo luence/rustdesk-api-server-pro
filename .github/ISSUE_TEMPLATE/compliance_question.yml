@@ -1,0 +1,38 @@
+name: Compliance question
+description: Ask about licensing, notices, trademarks, privacy, or release packaging
+title: "[Compliance]: "
+labels: ["compliance"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This template is for project compliance questions. It is not a substitute for legal advice.
+  - type: dropdown
+    id: topic
+    attributes:
+      label: Topic
+      options:
+        - AGPL-3.0 source availability
+        - Third-party dependency license
+        - Trademark / non-affiliation wording
+        - Release artifact packaging
+        - Docker image / SBOM
+        - Privacy / data processing
+        - Security disclosure
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: Describe the question and affected files or release.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety checklist
+      options:
+        - label: I did not include secrets, private contracts, private legal advice, user data, or confidential vendor documents.
+          required: true
