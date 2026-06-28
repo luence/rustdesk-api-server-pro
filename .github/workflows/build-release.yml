@@ -59,6 +59,10 @@ jobs:
           cd soybean-admin && pnpm build 
           cd .. && cp -R soybean-admin/dist build/
           cp backend/server.yaml build/
+          cp LICENSE build/
+          cp NOTICE build/
+          cp THIRD_PARTY_NOTICES.md build/
+          cp DISCLAIMER.md build/
 
       - name: 打包文件
         run: |
@@ -86,19 +90,24 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.build.outputs.tag_name }}
-          name: RustDesk API 1.4.7 兼容更新（${{ needs.build.outputs.tag_name }}）
+          name: RustDesk API Server Pro（${{ needs.build.outputs.tag_name }}）
           generate_release_notes: false
           body: |
-            本次发布已重新生成 RustDesk API 兼容更新包。
+            本次发布重新生成 RustDesk API Server Pro 部署包。
 
             主要内容：
-            - RustDesk 客户端兼容目标更新为 1.4.7，服务端兼容标识同步刷新。
-            - 补齐 RustDesk 1.4.7 设备部署接口兼容响应，避免新版客户端请求 `/api/devices/deploy` 时出现 404。
-            - 管理后台“服务器连接配置”新增配置二维码，方便手机 App 扫码导入。
             - 生成 Linux、Windows、macOS 的 amd64 和 arm64 部署包。
-            - Docker 镜像发布工作流会同步推送 GHCR `latest`、版本标签和 sha 标签。
+            - 部署包包含后端二进制、管理后台 dist、示例配置以及许可证/第三方声明文件。
+            - Docker 镜像发布工作流会在 tag 发布时同步推送 GHCR `latest`、版本标签和 sha 标签。
+            - 本项目是独立兼容实现，不是 RustDesk、Huawei、HarmonyOS、OpenHarmony 或其他第三方厂商的官方项目。
+
+            合规提示：
+            - 本项目使用 AGPL-3.0。若修改后通过网络向用户提供服务，应按 AGPL-3.0 提供对应源码。
+            - 发布包中不应包含生产数据库、生产 server.yaml、OAuth 密钥、SMTP 密码、日志、录屏文件或其他敏感数据。
+            - 第三方组件和商标说明见仓库中的 `NOTICE`、`THIRD_PARTY_NOTICES.md` 和 `DISCLAIMER.md`。
 
             升级提示：
             - 请同时替换后端程序和管理后台 dist 静态资源，并重启服务。
+            - Docker 镜像启动脚本会自动执行数据库同步；二进制部署请手动执行 `sync`。
             - 浏览器仍显示旧更新日志或旧按钮时，请强制刷新页面或清理缓存后再确认。
           files: release-assets/*.zip
