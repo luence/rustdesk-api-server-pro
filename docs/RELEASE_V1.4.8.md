@@ -1,11 +1,10 @@
-# Release v1.4.8
+# Obsolete Temporary Release Note
 
-This file records the one-time release trigger for `v1.4.8`.
+This file was a temporary release-trigger note and is intentionally obsolete.
 
-The release includes the OpenWrt / Docker one-container deployment alignment update:
+Use the normal tag-based release workflow instead:
 
-- `docker/update-openwrt-one-container.sh`
-- `docs/OPENWRT_ONE_CONTAINER.md`
-- refreshed `docs/DOCKER.md`
-- updated `docker-compose.yaml` labels
-- README links for OpenWrt one-container deployment
+- `.github/workflows/build-release.yml`
+- `.github/workflows/ghcr-docker.yml`
+
+This file can be safely removed in a local maintenance commit.
