@@ -1,0 +1,75 @@
+name: 合规检查
+run-name: 合规检查：${{ github.ref_name }}
+
+on:
+  pull_request:
+  push:
+    branches: ["main", "master"]
+
+permissions:
+  contents: read
+
+jobs:
+  compliance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 检查必要合规文件
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(
+            LICENSE
+            NOTICE
+            THIRD_PARTY_NOTICES.md
+            DISCLAIMER.md
+            SECURITY.md
+            PRIVACY.md
+            COMPLIANCE.md
+            CONTRIBUTING.md
+            CODE_OF_CONDUCT.md
+            SUPPORT.md
+          )
+          for file in "${required[@]}"; do
+            test -f "$file" || { echo "Missing required compliance file: $file"; exit 1; }
+          done
+
+      - name: 检查临时发布残留
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f .github/workflows/release-v1.4.8.yml ]; then
+            if ! grep -q "This one-off workflow is disabled" .github/workflows/release-v1.4.8.yml; then
+              echo "Unexpected active one-off release workflow detected."
+              exit 1
+            fi
+          fi
+
+      - name: 检查明显敏感文件
+        shell: bash
+        run: |
+          set -euo pipefail
+          forbidden='(server\.db|\.sqlite3?$|record_uploads/|id_rsa|id_ed25519|\.p12$|\.pfx$)'
+          if git ls-files | grep -E "$forbidden"; then
+            echo "Forbidden runtime or secret-like file tracked by git."
+            exit 1
+          fi
+
+      - name: 检查疑似密钥文本
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git grep -nE "(BEGIN RSA|BEGIN OPENSSH|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9_]{30,}|clientSecret: ['\"][^'\"]+['\"]|password: ['\"][^'\"]+['\"])" -- . ':!COMPLIANCE.md' ':!SECURITY.md' ':!PRIVACY.md' ':!README.md' ':!docs/**'; then
+            echo "Potential secret detected. Review before merging."
+            exit 1
+          fi
+
+      - name: 检查非官方声明
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -qi "not affiliated" NOTICE
+          grep -qi "not affiliated" DISCLAIMER.md
+          grep -qi "AGPL" README.md
