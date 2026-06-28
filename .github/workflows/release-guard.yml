@@ -41,6 +41,7 @@ jobs:
             docs/LEGAL_COMPLIANCE.md
             docs/RELEASE_PROCESS.md
             docs/SECRET_HANDLING.md
+            docs/CLEANUP_HISTORY.md
           )
           for file in "${required[@]}"; do
             test -f "$file" || { echo "Missing release compliance file: $file"; exit 1; }
@@ -55,6 +56,14 @@ jobs:
             echo "Release is blocked because runtime data or secret-like files are tracked."
             exit 1
           fi
+
+      - name: 检查清理流程默认不删除标签
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q "clean_tags:" .github/workflows/cleanup-history.yml
+          grep -A5 "clean_tags:" .github/workflows/cleanup-history.yml | grep -q "default: false"
+          grep -q "CLEAN_TAGS" .github/workflows/cleanup-history.yml
 
       - name: 检查发布工作流包含合规文件
         shell: bash
