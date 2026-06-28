@@ -46,8 +46,12 @@ jobs:
 
       - name: 构建 Go 后端
         if: matrix.language == 'go'
+        working-directory: backend
         run: |
-          go build -C backend ./...
+          which go
+          go version
+          go clean -cache
+          go build -a ./...
 
       - name: 执行 CodeQL 分析
         uses: github/codeql-action/analyze@v3
