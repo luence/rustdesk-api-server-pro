@@ -98,4 +98,7 @@ type CompatAPIAuditCreateCommand struct {
 	StatusCode    int
 	IP            string
 	UserAgent     string
+	Result        string
+	ErrorMessage  string
+	BodyDigest    string
 }
