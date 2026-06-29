@@ -1,6 +1,10 @@
 package api
 
-import "github.com/kataras/iris/v12/mvc"
+import (
+	"encoding/json"
+
+	"github.com/kataras/iris/v12/mvc"
+)
 
 // CompatLicController provides compatibility endpoints under /lic/web/api used by newer clients/plugins.
 // This project does not implement the official plugin signing service, but returns a stable JSON shape
@@ -24,14 +28,21 @@ func (c *CompatLicController) BeforeActivation(b mvc.BeforeActivation) {
 }
 
 func (c *CompatLicController) HandlePluginSign() mvc.Result {
+	body, err := c.readBodyBytes()
+	if err != nil {
+		c.recordCompatAPIAudit(true, 400, "error", err.Error(), nil)
+		return mvc.Response{Object: pluginSignResp{SignedMsg: []byte{}}}
+	}
+
 	var req pluginSignReq
 	// Always return the expected JSON shape even when payload is invalid, so client plugins do not fail on decode.
-	if err := c.readJSONBody(&req); err != nil {
-		return mvc.Response{
-			Object: pluginSignResp{SignedMsg: []byte{}},
-		}
+	if err := json.Unmarshal(body, &req); err != nil {
+		c.recordCompatAPIAudit(true, 400, "decode_error", err.Error(), body)
+		return mvc.Response{Object: pluginSignResp{SignedMsg: []byte{}}}
 	}
+
 	result := c.compatService().PluginSign(req.Msg)
+	c.recordCompatAPIAudit(true, 200, "passthrough", "", body)
 	return mvc.Response{
 		Object: pluginSignResp{SignedMsg: result.SignedMsg},
 	}
