@@ -54,6 +54,7 @@ func (s *CompatService) Target() map[string]any {
 			"audit":                   true,
 			"file_transfer_audit":     true,
 			"alarm_audit":             true,
+			"compat_api_audit":        true,
 			"device_group":            true,
 			"user_group":              true,
 			"strategy":                true,
