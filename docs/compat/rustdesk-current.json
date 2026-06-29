@@ -1,0 +1,90 @@
+{
+  "client": {
+    "name": "rustdesk",
+    "version": "1.4.8",
+    "tag": "1.4.8",
+    "release_date": "2026-06-21",
+    "source_repo": "rustdesk/rustdesk"
+  },
+  "server": {
+    "api_project": "rustdesk-api-server-pro",
+    "compat_server_version": "1.1.15",
+    "status": "compatibility-layer"
+  },
+  "sysinfo_version": "rustdesk-api-server-pro-compat-client-1.4.8-server-1.1.15-latest",
+  "smoke_test": {
+    "public": "bash scripts/compat/smoke-api.sh http://127.0.0.1:12345",
+    "authenticated": "TOKEN=YOUR_TOKEN bash scripts/compat/smoke-api.sh http://127.0.0.1:12345"
+  },
+  "focus": [
+    "windows_arm64_support",
+    "remote_toolbar_monitor_switch",
+    "privacy_mode_multi_monitor",
+    "remote_restart_autoconnect",
+    "oidc_microsoft_icon_compat"
+  ],
+  "public_probe_endpoints": [
+    "/api/health",
+    "/api/ping",
+    "/api/status",
+    "/api/version",
+    "/api/info",
+    "/api/features",
+    "/api/capabilities",
+    "/api/compat/features",
+    "/api/config",
+    "/api/client-config",
+    "/api/client_config",
+    "/api/server-config",
+    "/api/server_config",
+    "/api/server/info",
+    "/api/compat-target",
+    "/api/compat/target",
+    "/api/compat/version",
+    "/api/sysinfo_ver",
+    "/api/devices/deploy"
+  ],
+  "authenticated_endpoints": [
+    "/api/login-options",
+    "/api/currentUser",
+    "/api/logout",
+    "/api/ab/personal",
+    "/api/ab/settings",
+    "/api/ab/shared-profiles",
+    "/api/ab/shared_profiles",
+    "/api/devices/cli",
+    "/api/devices/current",
+    "/api/me"
+  ],
+  "validated_endpoints": [
+    "/api/health",
+    "/api/ping",
+    "/api/status",
+    "/api/version",
+    "/api/info",
+    "/api/features",
+    "/api/capabilities",
+    "/api/compat/features",
+    "/api/config",
+    "/api/client-config",
+    "/api/client_config",
+    "/api/server-config",
+    "/api/server_config",
+    "/api/server/info",
+    "/api/compat-target",
+    "/api/compat/target",
+    "/api/compat/version",
+    "/api/sysinfo_ver",
+    "/api/devices/deploy",
+    "/api/login-options",
+    "/api/currentUser",
+    "/api/logout",
+    "/api/ab/personal",
+    "/api/ab/settings",
+    "/api/ab/shared-profiles",
+    "/api/ab/shared_profiles",
+    "/api/devices/cli",
+    "/api/devices/current",
+    "/api/me"
+  ]
+}

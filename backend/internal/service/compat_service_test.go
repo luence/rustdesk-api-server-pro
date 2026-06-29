@@ -107,6 +107,83 @@ func TestCompatServiceHandleRecordValidation(t *testing.T) {
 	}
 }
 
+func TestCompatServiceTargetContract(t *testing.T) {
+	svc := NewCompatService(nil, nil, nil)
+	target := svc.Target()
+
+	if got := target["project"]; got != "rustdesk-api-server-pro" {
+		t.Fatalf("unexpected project: %v", got)
+	}
+	if got := target["sysinfo_version"]; got != CompatSysinfoVersion {
+		t.Fatalf("unexpected sysinfo_version: %v", got)
+	}
+
+	client, ok := target["client"].(map[string]any)
+	if !ok {
+		t.Fatalf("client target should be map[string]any")
+	}
+	if got := client["name"]; got != CompatClientName {
+		t.Fatalf("unexpected client name: %v", got)
+	}
+	if got := client["version"]; got != CompatClientVersion {
+		t.Fatalf("unexpected client version: %v", got)
+	}
+	if got := client["release_date"]; got != CompatClientReleaseDate {
+		t.Fatalf("unexpected client release date: %v", got)
+	}
+
+	server, ok := target["server"].(map[string]any)
+	if !ok {
+		t.Fatalf("server target should be map[string]any")
+	}
+	if got := server["version"]; got != CompatServerVersion {
+		t.Fatalf("unexpected server version: %v", got)
+	}
+	if got := server["status"]; got != CompatTargetStatus {
+		t.Fatalf("unexpected server status: %v", got)
+	}
+
+	features, ok := target["features"].(map[string]bool)
+	if !ok {
+		t.Fatalf("features should be map[string]bool")
+	}
+	for _, key := range []string{
+		"address_book",
+		"audit",
+		"file_transfer_audit",
+		"alarm_audit",
+		"device_group",
+		"user_group",
+		"strategy",
+		"record",
+		"plugin_sign_passthrough",
+	} {
+		if !features[key] {
+			t.Fatalf("expected feature %s to be enabled", key)
+		}
+	}
+
+	focus, ok := target["official_focus"].([]string)
+	if !ok {
+		t.Fatalf("official_focus should be []string")
+	}
+	for _, key := range []string{"windows_arm64_support", "remote_restart_autoconnect", "oidc_microsoft_icon_compat"} {
+		if !containsString(focus, key) {
+			t.Fatalf("expected official_focus to contain %s", key)
+		}
+	}
+
+	endpoints, ok := target["probe_endpoints"].([]string)
+	if !ok {
+		t.Fatalf("probe_endpoints should be []string")
+	}
+	for _, path := range []string{"/api/health", "/api/compat-target", "/api/server/info", "/api/devices/deploy"} {
+		if !containsString(endpoints, path) {
+			t.Fatalf("expected probe_endpoints to contain %s", path)
+		}
+	}
+}
+
 func TestCompatServiceHandleDeviceDeploy(t *testing.T) {
 	svc := NewCompatService(nil, nil, nil)
 
@@ -158,4 +235,13 @@ func TestCompatServiceHandleDeviceDeploy(t *testing.T) {
 			}
 		})
 	}
+}
+
+func containsString(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
 }
