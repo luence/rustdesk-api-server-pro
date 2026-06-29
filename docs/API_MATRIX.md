@@ -33,6 +33,7 @@
 | --- | --- | --- | --- | --- | --- |
 | 用户 | GET/POST | `/api/user/*` | 是 | 待核验 | 用户信息、当前账号 |
 | 退出登录 | GET/POST/DELETE | `/api/logout` | 是 | 基础 | 退出登录成功/失败已写 `security_audit` |
+| token 鉴权 | * | `/api/*` 鉴权接口 | 是 | 基础 | 客户端 token 无效、token 对应用户无效已写 `security_audit` |
 | 地址簿 | GET/POST | `/api/peers/*` | 是 | 基础 | 老接口地址簿兼容 |
 | 地址簿 | GET/POST | `/api/ab/*` | 是 | 基础 | 新地址簿主体 |
 | 地址簿标签 | GET/POST | `/api/ab/tags/*` | 是 | 基础 | 标签、颜色、备注兼容 |
@@ -45,7 +46,7 @@
 
 | 模块 | 路径 | 状态 | 建议 |
 | --- | --- | --- | --- |
-| 后台登录 | `/admin/auth/*` | 基础 | 管理员账号登录成功/失败已写 `security_audit`；OIDC/OAuth 回调审计待补 |
+| 后台登录 | `/admin/auth/*` | 基础 | 管理员账号登录成功/失败、OIDC/OAuth 回调与 ticket 换 token、后台 token 无效已写 `security_audit` |
 | 仪表盘 | `/admin/dashboard/*` | 已有 | 增加审计概览 |
 | 用户管理 | `/admin/users/*` | 已有 | 增加操作审计 |
 | 会话管理 | `/admin/sessions/*` | 已有 | 增加 token 安全事件 |
@@ -74,10 +75,15 @@
 | 客户端登录失败 | 是 | `security_audit` | P0 |
 | 客户端验证码/2FA 中间态 | 是 | `security_audit` | P1 |
 | 客户端退出登录 | 是 | `security_audit` | P1 |
+| 客户端 token 无效 | 是 | `security_audit` | P1 |
+| 客户端 token 对应用户无效 | 是 | `security_audit` | P1 |
 | 后台登录成功 | 是 | `security_audit` | P0 |
 | 后台登录失败 | 是 | `security_audit` | P0 |
-| OIDC/OAuth 回调失败 | 待补 | `security_audit` | P1 |
-| token 无效 | 待补 | `security_audit` | P1 |
+| 后台 token 无效 | 是 | `security_audit` | P1 |
+| 后台 token 对应管理员无效 | 是 | `security_audit` | P1 |
+| OIDC/OAuth 回调成功 | 是 | `security_audit` | P1 |
+| OIDC/OAuth 回调失败 | 是 | `security_audit` | P1 |
+| OIDC/OAuth ticket 换 token | 是 | `security_audit` | P1 |
 | 后台新增用户 | 待补 | `operation_audit` | P0 |
 | 后台修改用户 | 待补 | `operation_audit` | P0 |
 | 后台删除用户 | 待补 | `operation_audit` | P0 |
@@ -108,7 +114,7 @@ MySQL 验证：通过/失败
 ## 7. 下一批建议开发任务
 
 1. 后台审计页面增加 `security_audit` / `compat_api_audit` 视图，按事件、path、method、is_stub、result、client_version 聚合。
-2. 新增 OIDC/OAuth 回调成功/失败审计。
-3. 新增 `operation_audit` 接入用户管理增删改。
-4. 建立真实 RustDesk 客户端抓包样例目录，补齐官方接口字段差异。
-5. 对 `/lic/web/api/*` 继续做真实客户端验证，避免误以为 plugin-sign 透传等价于官方签名服务。
+2. 新增 `operation_audit` 接入用户管理增删改。
+3. 建立真实 RustDesk 客户端抓包样例目录，补齐官方接口字段差异。
+4. 对 `/lic/web/api/*` 继续做真实客户端验证，避免误以为 plugin-sign 透传等价于官方签名服务。
+5. 增强 authenticated smoke：用测试用户登录后验证 `/api/currentUser`、`/api/logout` 和安全审计落库。
