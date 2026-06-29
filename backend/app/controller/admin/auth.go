@@ -114,8 +114,10 @@ func (c *AuthController) GetAuthOidcToken() mvc.Result {
 	ticket := c.Ctx.URLParamDefault("ticket", "")
 	token, err := service.ExchangeAdminTicket(ticket)
 	if err != nil {
+		c.recordAdminSecurityAudit("admin_oidc_token_exchange", false, err.Error())
 		return c.Error(nil, err.Error())
 	}
+	c.recordAdminSecurityAudit("admin_oidc_token_exchange", true, "token")
 	return c.Success(iris.Map{
 		"token": token,
 	}, "ok")
@@ -128,10 +130,12 @@ func (c *AuthController) GetAuthOidcCallback() mvc.Result {
 
 	ticket, redirectTo, err := service.ConsumeAdminCallback(code, state)
 	if err != nil {
+		c.recordAdminSecurityAudit("admin_oidc_callback", false, err.Error())
 		c.Ctx.Redirect(withQuery(redirectTo, "oidc_error", err.Error()), iris.StatusFound)
 		return mvc.Response{}
 	}
 
+	c.recordAdminSecurityAudit("admin_oidc_callback", true, "ticket")
 	target := withQuery(redirectTo, "oidc_ticket", ticket)
 	c.Ctx.Redirect(target, iris.StatusFound)
 	return mvc.Response{}
@@ -161,8 +165,10 @@ func (c *AuthController) GetAuthOauthToken() mvc.Result {
 	ticket := c.Ctx.URLParamDefault("ticket", "")
 	token, err := service.ExchangeAdminTicket(ticket)
 	if err != nil {
+		c.recordAdminSecurityAudit("admin_oauth_token_exchange", false, err.Error())
 		return c.Error(nil, err.Error())
 	}
+	c.recordAdminSecurityAudit("admin_oauth_token_exchange", true, "token")
 	return c.Success(iris.Map{
 		"token": token,
 	}, "ok")
@@ -176,10 +182,12 @@ func (c *AuthController) HandleOauthCallback() mvc.Result {
 
 	ticket, redirectTo, err := service.ConsumeAdminCallback(provider, code, state)
 	if err != nil {
+		c.recordAdminSecurityAudit("admin_oauth_callback", false, provider+": "+err.Error())
 		c.Ctx.Redirect(withQuery(redirectTo, "oauth_error", err.Error()), iris.StatusFound)
 		return mvc.Response{}
 	}
 
+	c.recordAdminSecurityAudit("admin_oauth_callback", true, provider+": ticket")
 	target := withQuery(withQuery(redirectTo, "oauth_provider", provider), "oauth_ticket", ticket)
 	c.Ctx.Redirect(target, iris.StatusFound)
 	return mvc.Response{}
@@ -206,6 +214,16 @@ func (c *AuthController) recordAdminLoginAudit(userID int, username string, succ
 		UserID:    userID,
 		Username:  username,
 		Event:     "admin_login",
+		IP:        c.Ctx.RemoteAddr(),
+		UserAgent: c.Ctx.GetHeader("User-Agent"),
+		Success:   success,
+		Reason:    reason,
+	})
+}
+
+func (c *AuthController) recordAdminSecurityAudit(event string, success bool, reason string) {
+	_ = c.auditService().CreateSecurityAudit(core.SecurityAuditCreateCommand{
+		Event:     event,
 		IP:        c.Ctx.RemoteAddr(),
 		UserAgent: c.Ctx.GetHeader("User-Agent"),
 		Success:   success,
