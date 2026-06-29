@@ -161,6 +161,10 @@ func (r *XormAuditRepository) InsertOperationAudit(cmd core.OperationAuditCreate
 }
 
 func (r *XormAuditRepository) InsertCompatAPIAudit(cmd core.CompatAPIAuditCreateCommand) error {
+	result := cmd.Result
+	if result == "" {
+		result = "ok"
+	}
 	_, err := r.DB.Insert(&model.CompatAPIAudit{
 		Method:        cmd.Method,
 		Path:          cmd.Path,
@@ -170,6 +174,9 @@ func (r *XormAuditRepository) InsertCompatAPIAudit(cmd core.CompatAPIAuditCreate
 		StatusCode:    cmd.StatusCode,
 		IP:            cmd.IP,
 		UserAgent:     cmd.UserAgent,
+		Result:        result,
+		ErrorMessage:  cmd.ErrorMessage,
+		BodyDigest:    cmd.BodyDigest,
 	})
 	return err
 }
