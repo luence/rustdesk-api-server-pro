@@ -152,6 +152,7 @@ func TestCompatServiceTargetContract(t *testing.T) {
 		"audit",
 		"file_transfer_audit",
 		"alarm_audit",
+		"compat_api_audit",
 		"device_group",
 		"user_group",
 		"strategy",
