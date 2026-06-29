@@ -32,6 +32,7 @@
 | 模块 | 方法 | 路径 | 鉴权 | 状态 | 说明 |
 | --- | --- | --- | --- | --- | --- |
 | 用户 | GET/POST | `/api/user/*` | 是 | 待核验 | 用户信息、当前账号 |
+| 退出登录 | GET/POST/DELETE | `/api/logout` | 是 | 基础 | 退出登录成功/失败已写 `security_audit` |
 | 地址簿 | GET/POST | `/api/peers/*` | 是 | 基础 | 老接口地址簿兼容 |
 | 地址簿 | GET/POST | `/api/ab/*` | 是 | 基础 | 新地址簿主体 |
 | 地址簿标签 | GET/POST | `/api/ab/tags/*` | 是 | 基础 | 标签、颜色、备注兼容 |
@@ -72,10 +73,10 @@
 | 客户端登录成功 | 是 | `security_audit` | P0 |
 | 客户端登录失败 | 是 | `security_audit` | P0 |
 | 客户端验证码/2FA 中间态 | 是 | `security_audit` | P1 |
+| 客户端退出登录 | 是 | `security_audit` | P1 |
 | 后台登录成功 | 是 | `security_audit` | P0 |
 | 后台登录失败 | 是 | `security_audit` | P0 |
 | OIDC/OAuth 回调失败 | 待补 | `security_audit` | P1 |
-| 退出登录 | 待补 | `security_audit` | P1 |
 | token 无效 | 待补 | `security_audit` | P1 |
 | 后台新增用户 | 待补 | `operation_audit` | P0 |
 | 后台修改用户 | 待补 | `operation_audit` | P0 |
