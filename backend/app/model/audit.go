@@ -93,6 +93,9 @@ type CompatAPIAudit struct {
 	StatusCode    int       `xorm:"'status_code' int"`
 	IP            string    `xorm:"'ip' varchar(64)"`
 	UserAgent     string    `xorm:"'user_agent' varchar(512)"`
+	Result        string    `xorm:"'result' varchar(32) index"`
+	ErrorMessage  string    `xorm:"'error_message' varchar(1024)"`
+	BodyDigest    string    `xorm:"'body_digest' varchar(128)"`
 	CreatedAt     time.Time `xorm:"'created_at' datetime created index"`
 }
 
