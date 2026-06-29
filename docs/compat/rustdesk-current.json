@@ -42,11 +42,11 @@
     "/api/compat/target",
     "/api/compat/version",
     "/api/sysinfo_ver",
+    "/api/login-options",
     "/api/devices/deploy",
     "/lic/web/api/plugin-sign"
   ],
   "authenticated_endpoints": [
-    "/api/login-options",
     "/api/currentUser",
     "/api/logout",
     "/api/ab/personal",
@@ -76,9 +76,9 @@
     "/api/compat/target",
     "/api/compat/version",
     "/api/sysinfo_ver",
+    "/api/login-options",
     "/api/devices/deploy",
     "/lic/web/api/plugin-sign",
-    "/api/login-options",
     "/api/currentUser",
     "/api/logout",
     "/api/ab/personal",
