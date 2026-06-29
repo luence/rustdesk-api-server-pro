@@ -18,7 +18,7 @@ request() {
 
   echo "==> $method $path"
   if out="$(curl "${args[@]}" 2>&1)"; then
-    if [ -n "$expect" ] && ! grep -q "$expect" <<<"$out"; then
+    if [ -n "$expect" ] && ! grep -Fq "$expect" <<<"$out"; then
       echo "Expected to find '$expect' but got: $out" >&2
       failures=$((failures + 1))
     else
@@ -43,7 +43,7 @@ request_json() {
 
   echo "==> $method $path"
   if out="$(curl "${args[@]}" 2>&1)"; then
-    if [ -n "$expect" ] && ! grep -q "$expect" <<<"$out"; then
+    if [ -n "$expect" ] && ! grep -Fq "$expect" <<<"$out"; then
       echo "Expected to find '$expect' but got: $out" >&2
       failures=$((failures + 1))
     else
