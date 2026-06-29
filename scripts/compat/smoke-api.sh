@@ -30,6 +30,31 @@ request() {
   fi
 }
 
+request_json() {
+  local method="$1"
+  local path="$2"
+  local payload="$3"
+  local expect="$4"
+  local url="${BASE_URL%/}${path}"
+  local args=(-fsS -X "$method" "$url" -H "Content-Type: application/json" --data "$payload")
+  if [ -n "$TOKEN" ]; then
+    args+=(-H "Authorization: Bearer $TOKEN")
+  fi
+
+  echo "==> $method $path"
+  if out="$(curl "${args[@]}" 2>&1)"; then
+    if [ -n "$expect" ] && ! grep -q "$expect" <<<"$out"; then
+      echo "Expected to find '$expect' but got: $out" >&2
+      failures=$((failures + 1))
+    else
+      echo "OK"
+    fi
+  else
+    echo "FAILED: $out" >&2
+    failures=$((failures + 1))
+  fi
+}
+
 # Public compatibility probes. These should not require login.
 request GET  /api/health "ok"
 request GET  /api/ping "ok"
@@ -51,6 +76,9 @@ request GET  /api/compat/target "1.4.8"
 request GET  /api/compat/version "1.4.8"
 request GET  /api/sysinfo_ver "1.4.8"
 request GET  /api/devices/deploy "NOT_ENABLED"
+
+# License/plugin compatibility endpoint. It is a passthrough placeholder but should keep a stable JSON shape.
+request_json POST /lic/web/api/plugin-sign '{"plugin_id":"compat-smoke","version":"1.4.8","msg":"c21va2U="}' "signed_msg"
 
 if [ -n "$TOKEN" ]; then
   request GET  /api/currentUser "data"
