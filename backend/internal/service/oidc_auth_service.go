@@ -30,6 +30,7 @@ type oidcMetadata struct {
 	AuthorizationEndpoint string `json:"authorization_endpoint"`
 	TokenEndpoint         string `json:"token_endpoint"`
 	UserinfoEndpoint      string `json:"userinfo_endpoint"`
+	JWKSURI               string `json:"jwks_uri"`
 }
 
 type oidcTokenResponse struct {
@@ -282,6 +283,9 @@ func (s *OIDCAuthService) fetchUserClaims(tokenResp *oidcTokenResponse) (*OIDCUs
 	claims := map[string]interface{}{}
 	idTokenClaims := map[string]interface{}{}
 	if tokenResp.IDToken != "" {
+		if err = s.verifyIDTokenSignature(tokenResp.IDToken, metadata); err != nil {
+			return nil, err
+		}
 		issuer := strings.TrimRight(strings.TrimSpace(s.cfg.OIDC.Issuer), "/")
 		if err = fillClaimsByIDToken(tokenResp.IDToken, issuer, s.cfg.OIDC.ClientID, idTokenClaims); err != nil {
 			return nil, err
@@ -365,6 +369,9 @@ func validateIDTokenClaims(claims map[string]interface{}, expectedIssuer, expect
 	exp, ok := claimUnixTime(claims["exp"])
 	if !ok || time.Now().After(time.Unix(exp, 0)) {
 		return errors.New("id token expired")
+	}
+	if idTokenIssuedTooFarInFuture(claims, 2*time.Minute) {
+		return errors.New("id token issued-at invalid")
 	}
 	return nil
 }
