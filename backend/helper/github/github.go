@@ -3,7 +3,6 @@ package github
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"rustdesk-api-server-pro/util"
 )
 
@@ -33,50 +32,41 @@ type Asset struct {
 	BrowserDownloadURL string `json:"browser_download_url"`
 }
 
-func GetReleases(repo string) *[]Release {
-	repo = fmt.Sprintf("https://api.github.com/repos/%s/releases", repo)
-	resp, err := util.HttpGetString(repo)
+func GetReleases(repo string) (*[]Release, error) {
+	endpoint := fmt.Sprintf("https://api.github.com/repos/%s/releases", repo)
+	resp, err := util.HttpGetString(endpoint)
 	if err != nil {
-		fmt.Println("GetReleases:: Request error:", err)
-		os.Exit(0)
+		return nil, fmt.Errorf("get releases request failed: %w", err)
 	}
 	releases := &[]Release{}
-	err = json.Unmarshal([]byte(resp), releases)
-	if err != nil {
-		fmt.Println("GetReleases:: json.Unmarshal:", err)
-		os.Exit(0)
+	if err = json.Unmarshal([]byte(resp), releases); err != nil {
+		return nil, fmt.Errorf("decode releases response failed: %w", err)
 	}
-	return releases
+	return releases, nil
 }
 
-func GetLatestRelease(repo string) *Release {
-	repo = fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", repo)
-	resp, err := util.HttpGetString(repo)
+func GetLatestRelease(repo string) (*Release, error) {
+	endpoint := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", repo)
+	resp, err := util.HttpGetString(endpoint)
 	if err != nil {
-		fmt.Println("GetLatestRelease:: Request error:", err)
-		os.Exit(0)
+		return nil, fmt.Errorf("get latest release request failed: %w", err)
 	}
 	release := &Release{}
-	err = json.Unmarshal([]byte(resp), release)
-	if err != nil {
-		fmt.Println("GetLatestRelease:: json.Unmarshal:", err)
-		os.Exit(0)
+	if err = json.Unmarshal([]byte(resp), release); err != nil {
+		return nil, fmt.Errorf("decode latest release response failed: %w", err)
 	}
-	return release
+	return release, nil
 }
 
-func GetReleaseByTag(repo, tag string) *Release {
-	repo = fmt.Sprintf("https://api.github.com/repos/%s/releases/tags/%s", repo, tag)
-	resp, err := util.HttpGetString(repo)
+func GetReleaseByTag(repo, tag string) (*Release, error) {
+	endpoint := fmt.Sprintf("https://api.github.com/repos/%s/releases/tags/%s", repo, tag)
+	resp, err := util.HttpGetString(endpoint)
 	if err != nil {
-		fmt.Println("GetReleaseByTag:: Request error:", err)
-		os.Exit(0)
+		return nil, fmt.Errorf("get release by tag request failed: %w", err)
 	}
 	release := &Release{}
-	err = json.Unmarshal([]byte(resp), release)
-	if err != nil {
-		fmt.Println("GetReleaseByTag:: json.Unmarshal:", err)
-		os.Exit(0)
+	if err = json.Unmarshal([]byte(resp), release); err != nil {
+		return nil, fmt.Errorf("decode release by tag response failed: %w", err)
 	}
-	return release
+	return release, nil
 }
