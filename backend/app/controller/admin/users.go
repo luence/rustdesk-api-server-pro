@@ -251,10 +251,12 @@ func (c *UsersController) HandleDelete() mvc.Result {
 		return c.Error(nil, err.Error())
 	}
 	ids := util.RemoveElement(params.Ids, 1)
-	beforeUsers := make([]model.User, 0)
-	if len(ids) > 0 {
-		_ = c.Db.In("id", ids).Find(&beforeUsers)
+	if len(ids) == 0 {
+		c.recordUserOperationAudit("admin_user_delete", "", nil, iris.Map{"ids": params.Ids}, "failure", "NoUserIds")
+		return c.Error(nil, "NoUserIds")
 	}
+	beforeUsers := make([]model.User, 0)
+	_ = c.Db.In("id", ids).Find(&beforeUsers)
 	beforeAudit := make([]iris.Map, 0)
 	for _, u := range beforeUsers {
 		user := u
