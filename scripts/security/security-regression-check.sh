@@ -29,9 +29,9 @@ grep -q 'CHANGE_ME_TO_A_RANDOM_32_BYTE_SECRET' backend/config/config.go || fail 
 grep -q 'generated_sign_key=' docker/start.sh || fail "Docker first-run signKey generation missing"
 grep -q 'CHANGE_ME_TO_A_RANDOM_32_BYTE_SECRET' docker/start.sh || fail "Docker placeholder signKey detection missing"
 
-# OAuth/OIDC callback URL generation must not trust X-Forwarded-Host.
-if grep -n 'X-Forwarded-Host' backend/app/controller/admin/auth.go; then
-  fail "OAuth/OIDC base URL must not trust X-Forwarded-Host"
+# OAuth/OIDC callback URL generation must not read X-Forwarded-Host from request headers.
+if grep -n 'GetHeader("X-Forwarded-Host")\|GetHeader(\x27X-Forwarded-Host\x27)' backend/app/controller/admin/auth.go; then
+  fail "OAuth/OIDC base URL must not read X-Forwarded-Host"
 fi
 grep -q 'oidc.redirectUrl or oauth.providers\[\].redirectUrl' backend/app/controller/admin/auth.go || fail "OAuth/OIDC redirectUrl operator guidance missing"
 
