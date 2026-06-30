@@ -85,6 +85,7 @@ type OAuthProviderConfig struct {
 	AuthorizationEndpoint string   `yaml:"authorizationEndpoint"`
 	TokenEndpoint         string   `yaml:"tokenEndpoint"`
 	UserinfoEndpoint      string   `yaml:"userinfoEndpoint"`
+	JWKSURI               string   `yaml:"jwksUri"`
 	RedirectURL           string   `yaml:"redirectUrl"`
 	ClientID              string   `yaml:"clientId"`
 	ClientSecret          string   `yaml:"clientSecret"`
@@ -220,25 +221,20 @@ func (cfg *ServerConfig) OAuthProviders() []OAuthProviderConfig {
 
 	if cfg != nil && cfg.OAuth != nil {
 		for _, provider := range cfg.OAuth.Providers {
-			name := provider.Name
+			name := strings.TrimSpace(provider.Name)
 			if name == "" {
-				switch provider.Type {
-				case "google":
-					name = "google"
-				case "github":
-					name = "github"
-				default:
-					name = "oidc"
-				}
+				name = strings.TrimSpace(provider.Type)
 			}
-			provider.Name = name
+			if name == "" {
+				name = "oidc"
+			}
 			if _, ok := seen[name]; ok {
 				continue
 			}
+			provider.Name = name
 			providers = append(providers, provider)
 			seen[name] = struct{}{}
 		}
 	}
-
 	return providers
 }
