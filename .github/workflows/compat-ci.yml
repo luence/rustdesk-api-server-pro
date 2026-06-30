@@ -3,8 +3,7 @@ run-name: 兼容性检查（${{ github.ref_name }}）
 
 on:
   push:
-    branches:
-      - develop
+    branches: ["master", "main", "develop"]
     paths:
       - 'backend/**'
       - 'soybean-admin/**'
@@ -14,6 +13,7 @@ on:
       - 'docs/compat/**'
       - '.github/workflows/compat-ci.yml'
   pull_request:
+    branches: ["master", "main", "develop"]
     paths:
       - 'backend/**'
       - 'soybean-admin/**'
@@ -81,6 +81,11 @@ jobs:
       - name: 构建 Docker 镜像
         run: docker build --build-arg APP_VERSION=compat-ci -t rustdesk-api-server-pro:compat-ci .
 
+      - name: 准备 CI 安全配置
+        run: |
+          cp backend/server.yaml compat-ci-server.yaml
+          sed -i 's/^signKey:.*/signKey: "compat-ci-random-sign-key-1234567890abcdef"/' compat-ci-server.yaml
+
       - name: 启动 Docker 容器
         run: |
           docker run -d \
@@ -88,6 +93,7 @@ jobs:
             --network host \
             -e ADMIN_USER=admin \
             -e ADMIN_PASS=ChangeMe123! \
+            -v "$PWD/compat-ci-server.yaml:/app/server.yaml:ro" \
             rustdesk-api-server-pro:compat-ci
 
       - name: 等待 API 就绪
