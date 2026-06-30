@@ -34,7 +34,7 @@
 | 用户 | GET/POST | `/api/user/*` | 是 | 待核验 | 用户信息、当前账号 |
 | 退出登录 | GET/POST/DELETE | `/api/logout` | 是 | 基础 | 退出登录成功/失败已写 `security_audit` |
 | token 鉴权 | * | `/api/*` 鉴权接口 | 是 | 基础 | 客户端 token 无效、token 对应用户无效已写 `security_audit` |
-| 地址簿 | GET/POST | `/api/peers/*` | 是 | 基础 | 老接口地址簿兼容；整体替换接口审计待补 |
+| 地址簿 | GET/POST | `/api/peers/*` | 是 | 基础 | 老接口地址簿兼容；整体替换接口已写 `operation_audit`，仅记录摘要 |
 | 地址簿 | GET/POST | `/api/ab/*` | 是 | 基础 | 新地址簿主体 |
 | 地址簿标签 | POST/PUT/DELETE | `/api/ab/tag*` | 是 | 基础 | 标签新增、改色、重命名、删除已写 `operation_audit` |
 | 地址簿设备 | POST/PUT/DELETE | `/api/ab/peer*` | 是 | 基础 | 地址簿设备新增、修改、删除已写 `operation_audit`；peer 密码不落明文 |
@@ -91,7 +91,7 @@
 | 修改设备 | 暂无写接口 | `operation_audit` | P1 |
 | 修改地址簿标签 | 是 | `operation_audit` | P1 |
 | 修改地址簿设备 | 是 | `operation_audit` | P1 |
-| 地址簿整体替换 | 待补 | `operation_audit` | P1 |
+| 地址簿整体替换 | 是 | `operation_audit` | P1 |
 | 修改策略 | 待补 | `operation_audit` | P2 |
 | 兼容/占位接口命中 | 是 | `compat_api_audit` | P1 |
 
@@ -117,7 +117,7 @@ MySQL 验证：通过/失败
 ## 7. 下一批建议开发任务
 
 1. 后台审计页面增加 `security_audit` / `compat_api_audit` / `operation_audit` 视图，按事件、path、method、is_stub、result、client_version、resource_type 聚合。
-2. 新增 `operation_audit` 接入地址簿整体替换和策略修改。
+2. 新增 `operation_audit` 接入策略修改。
 3. 建立真实 RustDesk 客户端抓包样例目录，补齐官方接口字段差异。
 4. 对 `/lic/web/api/*` 继续做真实客户端验证，避免误以为 plugin-sign 透传等价于官方签名服务。
 5. 增强 authenticated smoke：用测试用户登录后验证 `/api/currentUser`、`/api/logout` 和安全审计落库。
