@@ -20,12 +20,12 @@ func newApp(cfg *config.ServerConfig) (*iris.Application, error) {
 	app.RegisterDependency(dbEngine, cfg)
 
 	app.OnErrorCode(iris.StatusNotFound, func(context iris.Context) {
-		context.Application().Logger().Infof("(404)▶ %s:%s", context.Method(), context.Request().RequestURI)
+		context.Application().Logger().Infof("(404)▶ %s:%s", context.Method(), context.Request().URL.Path)
 	})
 
 	app.Use(iris.Compression)
 	if cfg.HttpConfig.PrintRequestLog {
-		app.Use(middleware.RequestLogger())
+		app.Use(middleware.RequestLogger(cfg.DebugMode))
 	}
 
 	SetRoute(app)
