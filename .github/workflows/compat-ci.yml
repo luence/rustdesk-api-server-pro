@@ -1,4 +1,5 @@
-name: Compatibility CI
+name: 兼容性检查
+run-name: 兼容性检查（${{ github.ref_name }}）
 
 on:
   push:
@@ -28,33 +29,35 @@ permissions:
 
 jobs:
   backend-compat:
+    name: 后端兼容性检查
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: backend
     steps:
-      - name: Checkout
+      - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: Setup Go
+      - name: 配置 Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.21.4'
           cache-dependency-path: backend/go.sum
 
-      - name: Go test
+      - name: 后端测试
         run: go test ./...
 
-      - name: Go build
+      - name: 后端构建
         run: go build -o rustdesk-api-server-pro .
 
   scripts-compat:
+    name: 兼容脚本检查
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: Check shell script syntax
+      - name: 检查 Shell 脚本语法
         run: |
           bash -n scripts/compat/check-rustdesk-release.sh
           bash -n scripts/compat/update-compat-target.sh
@@ -62,22 +65,23 @@ jobs:
           bash -n scripts/compat/extract-api-hints.sh
           bash -n scripts/compat/verify-compat-target.sh
 
-      - name: Validate compatibility manifest
+      - name: 校验兼容性清单
         run: jq -e '.client.version and .sysinfo_version and .validated_endpoints' docs/compat/rustdesk-current.json
 
-      - name: Verify manifest and Go constants
+      - name: 校验清单和 Go 常量
         run: bash scripts/compat/verify-compat-target.sh
 
   docker-smoke:
+    name: Docker 冒烟测试
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: Build Docker image
+      - name: 构建 Docker 镜像
         run: docker build --build-arg APP_VERSION=compat-ci -t rustdesk-api-server-pro:compat-ci .
 
-      - name: Run Docker container
+      - name: 启动 Docker 容器
         run: |
           docker run -d \
             --name rustdesk-api-compat-ci \
@@ -86,7 +90,7 @@ jobs:
             -e ADMIN_PASS=ChangeMe123! \
             rustdesk-api-server-pro:compat-ci
 
-      - name: Wait for API
+      - name: 等待 API 就绪
         run: |
           for i in $(seq 1 60); do
             if curl -fsS http://127.0.0.1:12345/api/health >/dev/null; then
@@ -97,9 +101,9 @@ jobs:
           docker logs rustdesk-api-compat-ci || true
           exit 1
 
-      - name: Run public smoke tests
+      - name: 执行公开接口冒烟测试
         run: bash scripts/compat/smoke-api.sh http://127.0.0.1:12345
 
-      - name: Show container logs on failure
+      - name: 失败时显示容器日志
         if: failure()
         run: docker logs rustdesk-api-compat-ci || true
