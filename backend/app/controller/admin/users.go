@@ -359,10 +359,7 @@ func auditJSON(value interface{}) string {
 	return string(data)
 }
 
-func auditIDsResource(ids []int) string {
-	if len(ids) == 0 {
-		return ""
-	}
+func auditIDsResource(ids interface{}) string {
 	data, err := json.Marshal(ids)
 	if err != nil {
 		return ""
