@@ -46,6 +46,14 @@ fi
 grep -q 'withQuery(redirectTo, "oidc_error", "auth_failed")' backend/app/controller/admin/auth.go || fail "OIDC redirect error must use sanitized code"
 grep -q 'withQuery(redirectTo, "oauth_error", "auth_failed")' backend/app/controller/admin/auth.go || fail "OAuth redirect error must use sanitized code"
 
+# Generic OAuth provider must not rely on plaintext token writes or timing-sensitive state signature checks.
+if grep -n 'Token:[[:space:]]*token' backend/internal/service/oauth_provider_service.go; then
+  fail "OAuth provider must write TokenHash instead of plaintext Token"
+fi
+if grep -n 'string(rawSignature)[[:space:]]*!=[[:space:]]*expectedSignature' backend/internal/service/oauth_provider_service.go; then
+  fail "OAuth provider state signature comparison must be constant time"
+fi
+
 # OIDC ID token fallback must verify signature and validate high-value claims before trusting payload data.
 grep -q 'verifyIDTokenSignature' backend/internal/service/oidc_auth_service.go || fail "OIDC ID token signature verification call missing"
 grep -q 'JWKSURI.*json:"jwks_uri"' backend/internal/service/oidc_auth_service.go || fail "OIDC jwks_uri metadata support missing"
