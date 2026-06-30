@@ -267,8 +267,8 @@ importers:
         specifier: 6.7.14
         version: 6.7.14
       consola:
-        specifier: 3.2.3
-        version: 3.2.3
+        specifier: 3.4.2
+        version: 3.4.2
       enquirer:
         specifier: 2.4.1
         version: 2.4.1
@@ -6265,7 +6265,7 @@ snapshots:
 
   citty@0.1.6:
     dependencies:
-      consola: 3.2.3
+      consola: 3.4.2
 
   class-utils@0.3.6:
     dependencies:
@@ -7221,7 +7221,7 @@ snapshots:
   giget@1.2.3:
     dependencies:
       citty: 0.1.6
-      consola: 3.2.3
+      consola: 3.4.2
       defu: 6.1.4
       node-fetch-native: 1.6.4
       nypm: 0.3.9
@@ -8136,7 +8136,7 @@ snapshots:
   nypm@0.3.9:
     dependencies:
       citty: 0.1.6
-      consola: 3.2.3
+      consola: 3.4.2
       execa: 8.0.1
       pathe: 1.1.2
       pkg-types: 1.1.3
