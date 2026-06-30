@@ -35,6 +35,12 @@ grep -q 'CHANGE_ME_TO_A_RANDOM_32_BYTE_SECRET' backend/config/config.go || fail 
 grep -q 'generated_sign_key=' docker/start.sh || fail "Docker first-run signKey generation missing"
 grep -q 'CHANGE_ME_TO_A_RANDOM_32_BYTE_SECRET' docker/start.sh || fail "Docker placeholder signKey detection missing"
 
+# 404 handling must not dump request headers or body to logs.
+if grep -n 'GetBody()\|Request().Header\|fmt.Println' backend/app/main.go; then
+  fail "404 handler must not log raw request headers or body"
+fi
+grep -q 'Logger().Infof("(404)' backend/app/main.go || fail "404 handler should keep sanitized method/URI logging"
+
 # OAuth/OIDC callback URL generation must not read X-Forwarded-Host from request headers.
 if grep -n 'GetHeader("X-Forwarded-Host")\|GetHeader(\x27X-Forwarded-Host\x27)' backend/app/controller/admin/auth.go; then
   fail "OAuth/OIDC base URL must not read X-Forwarded-Host"
