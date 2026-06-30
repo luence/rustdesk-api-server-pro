@@ -49,6 +49,9 @@ jobs:
       - name: 安装依赖
         run: pnpm install --frozen-lockfile
 
+      - name: TypeScript 类型检查
+        run: pnpm typecheck
+
       - name: i18n 质量检查（严格）
         run: pnpm i18n:check:strict
 
@@ -78,9 +81,6 @@ jobs:
             soybean-admin/docs/i18n-quality-summary.json
             soybean-admin/docs/i18n-sanitize-report.json
           if-no-files-found: error
-
-      - name: TypeScript 类型检查
-        run: pnpm typecheck
 
       - name: 前端构建
         run: pnpm build
