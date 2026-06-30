@@ -2,7 +2,6 @@ package app
 
 import (
 	"errors"
-	"fmt"
 	"rustdesk-api-server-pro/app/middleware"
 	"rustdesk-api-server-pro/config"
 	"rustdesk-api-server-pro/db"
@@ -21,13 +20,7 @@ func newApp(cfg *config.ServerConfig) (*iris.Application, error) {
 	app.RegisterDependency(dbEngine, cfg)
 
 	app.OnErrorCode(iris.StatusNotFound, func(context iris.Context) {
-		requestInfo := fmt.Sprintf("(404)▶ %s:%s", context.Method(), context.Request().RequestURI)
-		body, _ := context.GetBody()
-		context.Application().Logger().Info(requestInfo)
-		for header, value := range context.Request().Header {
-			fmt.Println(header+":", value)
-		}
-		fmt.Println(string(body))
+		context.Application().Logger().Infof("(404)▶ %s:%s", context.Method(), context.Request().RequestURI)
 	})
 
 	app.Use(iris.Compression)
