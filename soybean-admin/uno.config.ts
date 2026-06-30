@@ -25,6 +25,6 @@ export default defineConfig<Theme>({
   shortcuts: {
     'card-wrapper': 'rd-8px shadow-sm'
   },
-  transformers: [transformerDirectives(), transformerVariantGroup()],
-  presets: [presetUno({ dark: 'class' }), presetSoybeanAdmin()]
+  transformers: [transformerDirectives(), transformerVariantGroup()] as any,
+  presets: [presetUno({ dark: 'class' }), presetSoybeanAdmin()] as any
 });
