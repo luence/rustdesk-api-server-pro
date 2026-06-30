@@ -7,6 +7,8 @@ import (
 	"rustdesk-api-server-pro/app/model"
 	"rustdesk-api-server-pro/config"
 	"rustdesk-api-server-pro/db"
+	"rustdesk-api-server-pro/internal/core"
+	"strconv"
 	"xorm.io/xorm"
 )
 
@@ -79,16 +81,20 @@ func (c *MailTemplateController) HandleAdd() mvc.Result {
 	var form admin.MailTemplateForm
 	err := c.Ctx.ReadJSON(&form)
 	if err != nil {
+		c.recordMailTemplateOperationAudit("admin_mail_template_add", "", nil, nil, "failure", err.Error())
 		return c.Error(nil, err.Error())
 	}
 
 	if form.Name == "" {
+		c.recordMailTemplateOperationAudit("admin_mail_template_add", "", nil, sanitizeMailTemplateFormForAudit(form), "failure", "MailTemplateNameEmpty")
 		return c.Error(nil, "MailTemplateNameEmpty")
 	}
 	if form.Subject == "" {
+		c.recordMailTemplateOperationAudit("admin_mail_template_add", "", nil, sanitizeMailTemplateFormForAudit(form), "failure", "MailTemplateSubjectEmpty")
 		return c.Error(nil, "MailTemplateSubjectEmpty")
 	}
 	if form.Contents == "" {
+		c.recordMailTemplateOperationAudit("admin_mail_template_add", "", nil, sanitizeMailTemplateFormForAudit(form), "failure", "MailTemplateContentsEmpty")
 		return c.Error(nil, "MailTemplateContentsEmpty")
 	}
 
@@ -101,9 +107,11 @@ func (c *MailTemplateController) HandleAdd() mvc.Result {
 
 	_, err = c.Db.Insert(template)
 	if err != nil {
+		c.recordMailTemplateOperationAudit("admin_mail_template_add", "", nil, sanitizeMailTemplateFormForAudit(form), "failure", err.Error())
 		return c.Error(nil, err.Error())
 	}
 
+	c.recordMailTemplateOperationAudit("admin_mail_template_add", strconv.Itoa(template.Id), nil, sanitizeMailTemplateForAudit(template), "success", "")
 	return c.Success(nil, "MailTemplateAddSuccess")
 }
 
@@ -111,12 +119,26 @@ func (c *MailTemplateController) HandleEdit() mvc.Result {
 	var form admin.MailTemplateForm
 	err := c.Ctx.ReadJSON(&form)
 	if err != nil {
+		c.recordMailTemplateOperationAudit("admin_mail_template_edit", "", nil, nil, "failure", err.Error())
 		return c.Error(nil, err.Error())
 	}
 
 	if form.Id <= 0 {
+		c.recordMailTemplateOperationAudit("admin_mail_template_edit", "", nil, sanitizeMailTemplateFormForAudit(form), "failure", "DataError")
 		return c.Error(nil, "DataError")
 	}
+
+	var before model.MailTemplate
+	has, err := c.Db.Where("id = ?", form.Id).Get(&before)
+	if err != nil {
+		c.recordMailTemplateOperationAudit("admin_mail_template_edit", strconv.Itoa(form.Id), nil, sanitizeMailTemplateFormForAudit(form), "failure", err.Error())
+		return c.Error(nil, err.Error())
+	}
+	if !has {
+		c.recordMailTemplateOperationAudit("admin_mail_template_edit", strconv.Itoa(form.Id), nil, sanitizeMailTemplateFormForAudit(form), "failure", "MailTemplateNotFound")
+		return c.Error(nil, "MailTemplateNotFound")
+	}
+
 	template := &model.MailTemplate{
 		Name:     form.Name,
 		Type:     form.Type,
@@ -126,8 +148,64 @@ func (c *MailTemplateController) HandleEdit() mvc.Result {
 
 	_, err = c.Db.Where("id = ?", form.Id).Update(template)
 	if err != nil {
+		c.recordMailTemplateOperationAudit("admin_mail_template_edit", strconv.Itoa(form.Id), sanitizeMailTemplateForAudit(&before), sanitizeMailTemplateFormForAudit(form), "failure", err.Error())
 		return c.Error(nil, err.Error())
 	}
 
+	var after model.MailTemplate
+	_, _ = c.Db.Where("id = ?", form.Id).Get(&after)
+	c.recordMailTemplateOperationAudit("admin_mail_template_edit", strconv.Itoa(form.Id), sanitizeMailTemplateForAudit(&before), sanitizeMailTemplateForAudit(&after), "success", "")
 	return c.Success(nil, "MailTemplateUpdateSuccess")
+}
+
+func (c *MailTemplateController) recordMailTemplateOperationAudit(action string, resourceID string, beforeData interface{}, afterData interface{}, result string, errorMessage string) {
+	actor := c.GetUser()
+	cmd := core.OperationAuditCreateCommand{
+		Action:       action,
+		ResourceType: "mail_template",
+		ResourceID:   resourceID,
+		BeforeData:   auditJSON(beforeData),
+		AfterData:    auditJSON(afterData),
+		IP:           c.Ctx.RemoteAddr(),
+		UserAgent:    c.Ctx.GetHeader("User-Agent"),
+		Result:       result,
+		ErrorMessage: errorMessage,
+	}
+	if actor != nil {
+		cmd.ActorUserID = actor.Id
+		cmd.ActorUsername = actor.Username
+	}
+	_ = c.auditService().CreateOperationAudit(cmd)
+}
+
+func sanitizeMailTemplateForAudit(template *model.MailTemplate) iris.Map {
+	if template == nil {
+		return nil
+	}
+	return iris.Map{
+		"id":              template.Id,
+		"name":            template.Name,
+		"type":            template.Type,
+		"subject":         template.Subject,
+		"contents_length": len(template.Contents),
+		"contents_preview": truncateForAudit(template.Contents, 120),
+	}
+}
+
+func sanitizeMailTemplateFormForAudit(form admin.MailTemplateForm) iris.Map {
+	return iris.Map{
+		"id":              form.Id,
+		"name":            form.Name,
+		"type":            form.Type,
+		"subject":         form.Subject,
+		"contents_length": len(form.Contents),
+		"contents_preview": truncateForAudit(form.Contents, 120),
+	}
+}
+
+func truncateForAudit(value string, limit int) string {
+	if limit <= 0 || len(value) <= limit {
+		return value
+	}
+	return value[:limit]
 }
