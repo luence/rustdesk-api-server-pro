@@ -1,4 +1,4 @@
-name: RustDesk 兼容性检查
+name: RustDesk 上游新版本检查
 
 on:
   push:
