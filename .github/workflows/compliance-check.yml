@@ -4,7 +4,7 @@ run-name: 合规检查：${{ github.ref_name }}
 on:
   pull_request:
   push:
-    branches: ["main", "master"]
+    branches: ["main", "master", "develop"]
 
 permissions:
   contents: read
