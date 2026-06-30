@@ -280,15 +280,21 @@ func (s *OIDCAuthService) fetchUserClaims(tokenResp *oidcTokenResponse) (*OIDCUs
 	}
 
 	claims := map[string]interface{}{}
+	idTokenClaims := map[string]interface{}{}
+	if tokenResp.IDToken != "" {
+		issuer := strings.TrimRight(strings.TrimSpace(s.cfg.OIDC.Issuer), "/")
+		if err = fillClaimsByIDToken(tokenResp.IDToken, issuer, s.cfg.OIDC.ClientID, idTokenClaims); err != nil {
+			return nil, err
+		}
+	}
+
 	if metadata.UserinfoEndpoint != "" && tokenResp.AccessToken != "" {
 		if err = s.fillClaimsByUserinfo(metadata.UserinfoEndpoint, tokenResp.AccessToken, claims); err != nil {
 			return nil, err
 		}
 	}
-	if len(claims) == 0 && tokenResp.IDToken != "" {
-		if err = fillClaimsByIDToken(tokenResp.IDToken, claims); err != nil {
-			return nil, err
-		}
+	if len(claims) == 0 && len(idTokenClaims) > 0 {
+		claims = idTokenClaims
 	}
 
 	subjectClaim := s.claimOrDefault(s.cfg.OIDC.SubjectClaim, "sub")
@@ -330,16 +336,75 @@ func (s *OIDCAuthService) fillClaimsByUserinfo(userinfoEndpoint, accessToken str
 	return json.Unmarshal(body, &claims)
 }
 
-func fillClaimsByIDToken(idToken string, claims map[string]interface{}) error {
+func fillClaimsByIDToken(idToken, expectedIssuer, expectedAudience string, claims map[string]interface{}) error {
 	parts := strings.Split(idToken, ".")
-	if len(parts) < 2 {
+	if len(parts) != 3 {
 		return errors.New("invalid id token")
 	}
 	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(payload, &claims)
+	if err = json.Unmarshal(payload, &claims); err != nil {
+		return err
+	}
+	if err = validateIDTokenClaims(claims, expectedIssuer, expectedAudience); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateIDTokenClaims(claims map[string]interface{}, expectedIssuer, expectedAudience string) error {
+	issuer := strings.TrimRight(strings.TrimSpace(anyToString(claims["iss"])), "/")
+	if issuer == "" || issuer != strings.TrimRight(strings.TrimSpace(expectedIssuer), "/") {
+		return errors.New("id token issuer invalid")
+	}
+	if !claimAudienceContains(claims["aud"], expectedAudience) {
+		return errors.New("id token audience invalid")
+	}
+	exp, ok := claimUnixTime(claims["exp"])
+	if !ok || time.Now().After(time.Unix(exp, 0)) {
+		return errors.New("id token expired")
+	}
+	return nil
+}
+
+func claimAudienceContains(value interface{}, expected string) bool {
+	expected = strings.TrimSpace(expected)
+	if expected == "" {
+		return false
+	}
+	switch v := value.(type) {
+	case string:
+		return strings.TrimSpace(v) == expected
+	case []interface{}:
+		for _, item := range v {
+			if strings.TrimSpace(anyToString(item)) == expected {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func claimUnixTime(value interface{}) (int64, bool) {
+	switch v := value.(type) {
+	case float64:
+		return int64(v), v > 0
+	case json.Number:
+		n, err := v.Int64()
+		return n, err == nil && n > 0
+	case int64:
+		return v, v > 0
+	case int:
+		return int64(v), v > 0
+	case string:
+		var n int64
+		_, err := fmt.Sscanf(v, "%d", &n)
+		return n, err == nil && n > 0
+	default:
+		return 0, false
+	}
 }
 
 func (s *OIDCAuthService) resolveAdminUser(claims *OIDCUserClaims) (*model.User, error) {
@@ -473,11 +538,11 @@ func (s *OIDCAuthService) issueAdminToken(user *model.User) (string, error) {
 	signStr := fmt.Sprintf("%d_%s_%s", user.Id, user.Username, time.Now().String())
 	token := util.HmacSha256(signStr, s.cfg.SignKey)
 	authToken := &model.AuthToken{
-		UserId:  user.Id,
-		Token:   token,
-		Expired: time.Now().Add(2 * time.Hour),
-		IsAdmin: true,
-		Status:  1,
+		UserId:    user.Id,
+		TokenHash: util.Sha256Hex(token),
+		Expired:   time.Now().Add(2 * time.Hour),
+		IsAdmin:   true,
+		Status:    1,
 	}
 	_, err := s.db.Insert(authToken)
 	if err != nil {
