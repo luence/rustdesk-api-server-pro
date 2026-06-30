@@ -61,6 +61,15 @@ fi
 grep -q 'TokenHash:[[:space:]]*util.Sha256Hex(token)' backend/internal/service/oauth_provider_service.go || fail "OAuth provider explicit TokenHash write missing"
 grep -q 'util.ConstantTimeStringEqual(string(rawSignature), expectedSignature)' backend/internal/service/oauth_provider_service.go || fail "OAuth provider constant-time state comparison missing"
 
+# Generic OAuth id_token fallback must verify signatures and claims before trusting payload data.
+grep -q 'JWKSURI.*json:"jwks_uri"' backend/internal/service/oauth_provider_service.go || fail "OAuth provider jwks_uri metadata support missing"
+grep -q 'JWKSURI[[:space:]]*string[[:space:]]*`yaml:"jwksUri"`' backend/config/config.go || fail "OAuth provider jwksUri config support missing"
+grep -q 'verifyOAuthIDToken' backend/internal/service/oauth_provider_service.go || fail "OAuth provider ID token verification missing"
+grep -q 'verifyIDTokenSignature(idToken' backend/internal/service/oauth_provider_service.go || fail "OAuth provider ID token signature verification call missing"
+grep -q 'fillClaimsByOAuthIDToken(idToken, expectedIssuer, provider.ClientID, claims)' backend/internal/service/oauth_provider_service.go || fail "OAuth provider ID token claim validation call missing"
+grep -q 'validateIDTokenClaims(claims, expectedIssuer, expectedAudience)' backend/internal/service/oauth_provider_service.go || fail "OAuth provider ID token claim validation missing"
+grep -q 'oauth userinfo subject mismatch' backend/internal/service/oauth_provider_service.go || fail "OAuth provider userinfo/id_token subject consistency check missing"
+
 # OIDC ID token fallback must verify signature and validate high-value claims before trusting payload data.
 grep -q 'verifyIDTokenSignature' backend/internal/service/oidc_auth_service.go || fail "OIDC ID token signature verification call missing"
 grep -q 'JWKSURI.*json:"jwks_uri"' backend/internal/service/oidc_auth_service.go || fail "OIDC jwks_uri metadata support missing"
