@@ -49,8 +49,8 @@
 | 后台登录 | `/admin/auth/*` | 基础 | 管理员账号登录成功/失败、OIDC/OAuth 回调与 ticket 换 token、后台 token 无效已写 `security_audit` |
 | 仪表盘 | `/admin/dashboard/*` | 已有 | 增加审计概览 |
 | 用户管理 | `/admin/users/*` | 基础 | 新增、修改、删除用户已写 `operation_audit`；不记录密码和 2FA 密钥明文；空删除列表会返回 `NoUserIds` 并记录失败审计 |
-| 会话管理 | `/admin/sessions/*` | 已有 | 增加 token 安全事件 |
-| 设备管理 | `/admin/devices/*` | 已有 | 增加设备变更审计 |
+| 会话管理 | `/admin/sessions/*` | 基础 | 踢下线成功/失败已写 `operation_audit`；空会话 ID 列表会返回 `NoSessionIds` 并记录失败审计 |
+| 设备管理 | `/admin/devices/*` | 已有 | 当前只有列表查询，无写操作；后续如增加修改/删除再接 `operation_audit` |
 | 审计日志 | `/admin/audit/*` | 已有 | 增加高级筛选、导出、报警审计、兼容探测审计视图 |
 | 邮件模板 | `/admin/mail-template/*` | 已有 | 增加修改审计 |
 | 邮件日志 | `/admin/mail-logs/*` | 已有 | 增加发送失败分析 |
@@ -87,7 +87,8 @@
 | 后台新增用户 | 是 | `operation_audit` | P0 |
 | 后台修改用户 | 是 | `operation_audit` | P0 |
 | 后台删除用户 | 是 | `operation_audit` | P0 |
-| 修改设备 | 待补 | `operation_audit` | P1 |
+| 后台踢下线会话 | 是 | `operation_audit` | P1 |
+| 修改设备 | 暂无写接口 | `operation_audit` | P1 |
 | 修改地址簿 | 待补 | `operation_audit` | P1 |
 | 修改策略 | 待补 | `operation_audit` | P2 |
 | 兼容/占位接口命中 | 是 | `compat_api_audit` | P1 |
@@ -114,8 +115,7 @@ MySQL 验证：通过/失败
 ## 7. 下一批建议开发任务
 
 1. 后台审计页面增加 `security_audit` / `compat_api_audit` / `operation_audit` 视图，按事件、path、method、is_stub、result、client_version、resource_type 聚合。
-2. 新增 `operation_audit` 接入设备管理修改。
-3. 新增 `operation_audit` 接入地址簿和策略修改。
-4. 建立真实 RustDesk 客户端抓包样例目录，补齐官方接口字段差异。
-5. 对 `/lic/web/api/*` 继续做真实客户端验证，避免误以为 plugin-sign 透传等价于官方签名服务。
-6. 增强 authenticated smoke：用测试用户登录后验证 `/api/currentUser`、`/api/logout` 和安全审计落库。
+2. 新增 `operation_audit` 接入地址簿和策略修改。
+3. 建立真实 RustDesk 客户端抓包样例目录，补齐官方接口字段差异。
+4. 对 `/lic/web/api/*` 继续做真实客户端验证，避免误以为 plugin-sign 透传等价于官方签名服务。
+5. 增强 authenticated smoke：用测试用户登录后验证 `/api/currentUser`、`/api/logout` 和安全审计落库。
