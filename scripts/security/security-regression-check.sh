@@ -6,6 +6,10 @@ fail() {
   exit 1
 }
 
+# Generic security primitives must stay available for sensitive comparisons.
+grep -q 'func ConstantTimeStringEqual' backend/util/secure.go || fail "constant time string compare helper missing"
+grep -q 'subtle.ConstantTimeCompare' backend/util/secure.go || fail "constant time compare implementation missing"
+
 # AuthToken must keep model-layer hashing as a final safety net.
 grep -q 'func (m \*AuthToken) BeforeInsert()' backend/app/model/auth_token.go || fail "AuthToken.BeforeInsert hook missing"
 grep -q 'func (m \*AuthToken) BeforeUpdate()' backend/app/model/auth_token.go || fail "AuthToken.BeforeUpdate hook missing"
