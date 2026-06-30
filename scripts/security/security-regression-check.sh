@@ -50,6 +50,14 @@ grep -q 'Logger().Infof("▶ %s:%s"' backend/app/middleware/request_logger.go ||
 grep -q 'Request().URL.Path' backend/app/middleware/request_logger.go || fail "request logger must log URL.Path instead of RequestURI"
 grep -q 'RequestLogger(cfg.DebugMode)' backend/app/main.go || fail "request logger must use startup config instead of reloading config per request"
 
+# Helper packages must return errors to callers rather than terminating the process.
+if grep -n 'os.Exit' backend/helper/github/github.go; then
+  fail "github helper must return errors instead of exiting the process"
+fi
+grep -q 'GetLatestRelease(repo string) (\*Release, error)' backend/helper/github/github.go || fail "github latest release helper should return an error"
+grep -q 'GetReleaseByTag(repo, tag string) (\*Release, error)' backend/helper/github/github.go || fail "github release by tag helper should return an error"
+grep -q 'GetReleases(repo string) (\*\[\]Release, error)' backend/helper/github/github.go || fail "github releases helper should return an error"
+
 # OAuth/OIDC callback URL generation must not read X-Forwarded-Host from request headers.
 if grep -n 'GetHeader("X-Forwarded-Host")\|GetHeader(\x27X-Forwarded-Host\x27)' backend/app/controller/admin/auth.go; then
   fail "OAuth/OIDC base URL must not read X-Forwarded-Host"
