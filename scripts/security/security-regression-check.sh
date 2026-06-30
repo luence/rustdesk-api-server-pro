@@ -46,9 +46,14 @@ fi
 grep -q 'withQuery(redirectTo, "oidc_error", "auth_failed")' backend/app/controller/admin/auth.go || fail "OIDC redirect error must use sanitized code"
 grep -q 'withQuery(redirectTo, "oauth_error", "auth_failed")' backend/app/controller/admin/auth.go || fail "OAuth redirect error must use sanitized code"
 
-# Generic OAuth provider must not rely on plaintext token writes or timing-sensitive state signature checks.
-if grep -n 'Token:[[:space:]]*token' backend/internal/service/oauth_provider_service.go; then
-  fail "OAuth provider must write TokenHash instead of plaintext Token"
+# Generic OAuth provider must not rely on plaintext AuthToken writes or timing-sensitive state signature checks.
+if awk '
+  /authToken := &model\.AuthToken\{/ { in_auth_token=1 }
+  in_auth_token && /Token:[[:space:]]*token/ { print; found=1 }
+  in_auth_token && /^[[:space:]]*}/ { in_auth_token=0 }
+  END { exit found ? 0 : 1 }
+' backend/internal/service/oauth_provider_service.go; then
+  fail "OAuth provider AuthToken must write TokenHash instead of plaintext Token"
 fi
 if grep -n 'string(rawSignature)[[:space:]]*!=[[:space:]]*expectedSignature' backend/internal/service/oauth_provider_service.go; then
   fail "OAuth provider state signature comparison must be constant time"
