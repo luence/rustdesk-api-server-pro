@@ -1,4 +1,4 @@
-name: RustDesk Compatibility Watch
+name: RustDesk 兼容性检查
 
 on:
   workflow_dispatch:
