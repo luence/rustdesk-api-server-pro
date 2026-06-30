@@ -30,13 +30,19 @@ var rustdeskInstallCmd = &cobra.Command{
 		}
 
 		repo := "rustdesk/rustdesk-server"
-		release := &github.Release{}
+		var release *github.Release
+		var err error
 		rustdeskServerVersion := cmd.Flag("version").Value.String()
 		if rustdeskServerVersion == "latest" {
-			release = github.GetLatestRelease(repo)
+			release, err = github.GetLatestRelease(repo)
 		} else {
-			release = github.GetReleaseByTag(repo, rustdeskServerVersion)
+			release, err = github.GetReleaseByTag(repo, rustdeskServerVersion)
 		}
+		if err != nil {
+			fmt.Println("rustdesk-server release lookup error:", err)
+			os.Exit(1)
+		}
+
 		matchedAsset := github.Asset{}
 		arch := runtime.GOARCH
 		for _, asset := range release.Assets {
@@ -66,7 +72,7 @@ var rustdeskInstallCmd = &cobra.Command{
 		}
 		if matchedAsset.Name == "" {
 			fmt.Println("Your operating system is not supported, only support windows and linux ")
-			os.Exit(0)
+			os.Exit(1)
 		}
 
 		// Unzip the rustdesk-server zip if it already exists locally, otherwise download it from github
@@ -76,15 +82,15 @@ var rustdeskInstallCmd = &cobra.Command{
 			err := util.DownloadFile(matchedAsset.BrowserDownloadURL, matchedAsset.Name, true)
 			if err != nil {
 				fmt.Println("rustdesk-server download error: ", err)
-				os.Exit(0)
+				os.Exit(1)
 			}
 		}
 
 		fmt.Println("unzipping", matchedAsset.Name)
-		err := util.Unzip(matchedAsset.Name, rustdesk.GetRustdeskServerBinDir())
+		err = util.Unzip(matchedAsset.Name, rustdesk.GetRustdeskServerBinDir())
 		if err != nil {
 			fmt.Println(matchedAsset.Name, "unzipped error: ", err)
-			os.Exit(0)
+			os.Exit(1)
 		}
 		src := path.Join(rustdesk.GetRustdeskServerBinDir(), arch)
 		util.MoveFiles(src, rustdesk.GetRustdeskServerBinDir())
@@ -104,6 +110,7 @@ var rustdeskStartCmd = &cobra.Command{
 			fmt.Println("rustdesk-server started")
 		} else {
 			fmt.Println("rustdesk-server failed to start:", err.Error())
+			os.Exit(1)
 		}
 	},
 }
@@ -129,7 +136,7 @@ var rustdeskRestartCmd = &cobra.Command{
 		_, err := rustdesk.StartServer()
 		if err != nil {
 			fmt.Println("rustdesk-server start failed:", err.Error())
-			return
+			os.Exit(1)
 		}
 		fmt.Println("rustdesk-server started")
 	},
@@ -172,7 +179,11 @@ var rustdeskListCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		proxyServer := cmd.Flag("proxy").Value.String()
 		util.SetHttpProxy(proxyServer)
-		releases := github.GetReleases("rustdesk/rustdesk-server")
+		releases, err := github.GetReleases("rustdesk/rustdesk-server")
+		if err != nil {
+			fmt.Println("rustdesk-server release list error:", err)
+			os.Exit(1)
+		}
 		fmt.Printf("%-20s%s\n", "Version", "Published")
 		for _, release := range *releases {
 			fmt.Printf("%-20s%s\n", release.TagName, release.PublishedAt)
