@@ -3,8 +3,11 @@ run-name: 发布前检查：${{ github.ref_name }}
 
 on:
   push:
+    branches: ["master", "main", "develop"]
     tags:
       - "v*.*.*"
+  pull_request:
+    branches: ["master", "main", "develop"]
   workflow_dispatch:
 
 permissions:
