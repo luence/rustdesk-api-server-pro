@@ -41,6 +41,12 @@ if grep -n 'GetBody()\|Request().Header\|fmt.Println' backend/app/main.go; then
 fi
 grep -q 'Logger().Infof("(404)' backend/app/main.go || fail "404 handler should keep sanitized method/URI logging"
 
+# Request logger must not dump raw request headers or body, even in debug mode.
+if grep -n 'GetBody()\|Request().Header\|fmt.Println' backend/app/middleware/request_logger.go; then
+  fail "request logger must not log raw request headers or body"
+fi
+grep -q 'Logger().Infof("▶ %s:%s"' backend/app/middleware/request_logger.go || fail "request logger should keep sanitized method/URI logging"
+
 # OAuth/OIDC callback URL generation must not read X-Forwarded-Host from request headers.
 if grep -n 'GetHeader("X-Forwarded-Host")\|GetHeader(\x27X-Forwarded-Host\x27)' backend/app/controller/admin/auth.go; then
   fail "OAuth/OIDC base URL must not read X-Forwarded-Host"
