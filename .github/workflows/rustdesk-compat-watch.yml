@@ -10,12 +10,15 @@ on:
     - cron: '17 3 * * *'
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
   check-rustdesk-release:
     runs-on: ubuntu-latest
+    outputs:
+      needs_update: ${{ steps.check.outputs.needs_update }}
+      current_version: ${{ steps.check.outputs.current_version }}
+      latest_tag: ${{ steps.check.outputs.latest_tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,8 +30,31 @@ jobs:
             docs/compat/rustdesk-current.json \
             docs/compat/rustdesk-latest-detected.json
 
+      - name: Report detected upstream release on non-write events
+        if: steps.check.outputs.needs_update == 'true' && !(github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        run: |
+          echo "RustDesk upstream update detected: ${{ steps.check.outputs.latest_tag }}"
+          echo "Auto PR creation is restricted to scheduled or manual runs."
+
+  create-compatibility-pr:
+    needs: check-rustdesk-release
+    if: needs.check-rustdesk-release.outputs.needs_update == 'true' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Re-check latest RustDesk release
+        id: check
+        run: |
+          bash scripts/compat/check-rustdesk-release.sh \
+            docs/compat/rustdesk-current.json \
+            docs/compat/rustdesk-latest-detected.json
+
       - name: Auto-update compatibility target files
-        if: steps.check.outputs.needs_update == 'true' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         run: |
           bash scripts/compat/update-compat-target.sh \
             docs/compat/rustdesk-latest-detected.json \
@@ -36,14 +62,12 @@ jobs:
             backend/internal/service/compat_service.go
 
       - name: Generate upstream API hint report
-        if: steps.check.outputs.needs_update == 'true' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         run: |
           bash scripts/compat/extract-api-hints.sh \
             "${{ steps.check.outputs.latest_tag }}" \
             docs/compat/reports
 
       - name: Build compatibility report
-        if: steps.check.outputs.needs_update == 'true' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         run: |
           mkdir -p docs/compat/reports
           cat > docs/compat/reports/rustdesk-${{ steps.check.outputs.latest_tag }}.md <<'MD'
@@ -70,14 +94,7 @@ jobs:
           - [ ] Confirm whether any new upstream API behavior needs real code changes beyond version target update.
           MD
 
-      - name: Report detected upstream release on non-write events
-        if: steps.check.outputs.needs_update == 'true' && !(github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
-        run: |
-          echo "RustDesk upstream update detected: ${{ steps.check.outputs.latest_tag }}"
-          echo "Auto PR creation is restricted to scheduled or manual runs."
-
       - name: Create compatibility PR
-        if: steps.check.outputs.needs_update == 'true' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         uses: peter-evans/create-pull-request@v6
         with:
           title: "chore: align RustDesk ${{ steps.check.outputs.latest_tag }} compatibility target"
@@ -85,7 +102,7 @@ jobs:
             RustDesk upstream published a new release.
 
             - Current target before update: `${{ steps.check.outputs.current_version }}`
-            - Latest upstream: `${{ steps.check.outputs.latest_tag }}
+            - Latest upstream: `${{ steps.check.outputs.latest_tag }}`
 
             This PR was generated automatically. It updates the compatibility target constants and manifest, then creates checklist and upstream API hint reports. It does not claim full behavioral compatibility by itself; run Docker/Go build and smoke tests before merging.
           branch: "bot/rustdesk-${{ steps.check.outputs.latest_tag }}-compat"
