@@ -3,12 +3,12 @@ run-name: 前端质量检查（${{ github.ref_name }}）
 
 on:
   push:
-    branches: ["master", "main"]
+    branches: ["master", "main", "develop"]
     paths:
       - "soybean-admin/**"
       - ".github/workflows/frontend-quality.yml"
   pull_request:
-    branches: ["master", "main"]
+    branches: ["master", "main", "develop"]
     paths:
       - "soybean-admin/**"
       - ".github/workflows/frontend-quality.yml"
