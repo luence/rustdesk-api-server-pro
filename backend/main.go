@@ -1,12 +1,14 @@
 package main
 
 import (
+	"fmt"
+	"os"
 	"rustdesk-api-server-pro/cmd"
 )
 
 func main() {
-	err := cmd.RootCmd.Execute()
-	if err != nil {
-		panic(err)
+	if err := cmd.RootCmd.Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 }
