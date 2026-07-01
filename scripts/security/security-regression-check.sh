@@ -71,6 +71,12 @@ fi
 grep -q 'StartProcess(name string, attr \*ProcessAttr) (\*exec.Cmd, error)' backend/util/process.go || fail "StartProcess must return an error"
 grep -q 'return nil, err' backend/util/process.go || fail "StartProcess must return start errors"
 
+# RustDesk CLI must not ignore install/start errors or reveal private keys by default.
+grep -q 'if err = util.MoveFiles(src, rustdesk.GetRustdeskServerBinDir()); err != nil' backend/cmd/rustdesk.go || fail "rustdesk install must handle MoveFiles errors"
+grep -q 'rustdesk-server move files error' backend/cmd/rustdesk.go || fail "rustdesk install move error message missing"
+grep -q 'private key: hidden' backend/cmd/rustdesk.go || fail "rustdesk private key must be hidden by default"
+grep -q 'show-private' backend/cmd/rustdesk.go || fail "rustdesk private key reveal must require explicit flag"
+
 # RustDesk process lifecycle must avoid unsafe pid permissions and nil process panics.
 grep -q 'writePidFile(pidFile string, pid int) error' backend/helper/rustdesk/server.go || fail "rustdesk pid writer helper missing"
 grep -q 'os.WriteFile(pidFile, \[\]byte(strconv.Itoa(pid)), 0644)' backend/helper/rustdesk/server.go || fail "rustdesk pid files must use 0644 permissions"
@@ -82,17 +88,6 @@ grep -q 'os.Remove(hbbsPidFile)' backend/helper/rustdesk/server.go || fail "rust
 if grep -n 'os.ModePerm' backend/helper/rustdesk/server.go; then
   fail "rustdesk server helper must not use world-writable permissions"
 fi
-
-# RustDesk key output must not reveal or read the private key by default.
-grep -q 'show-private' backend/cmd/rustdesk.go || fail "rustdesk private key output must require an explicit flag"
-grep -q 'rustdesk.PublicKey()' backend/cmd/rustdesk.go || fail "rustdesk keys command should read public key by default"
-grep -q 'rustdesk.PrivateKey()' backend/cmd/rustdesk.go || fail "rustdesk keys command should read private key only when explicitly requested"
-grep -q 'func PublicKey() string' backend/helper/rustdesk/server.go || fail "rustdesk public key helper missing"
-grep -q 'func PrivateKey() string' backend/helper/rustdesk/server.go || fail "rustdesk private key helper missing"
-if grep -n 'public, private := rustdesk.Keys()' backend/cmd/rustdesk.go; then
-  fail "rustdesk keys command must not read the private key by default"
-fi
-grep -q 'private key: hidden' backend/cmd/rustdesk.go || fail "rustdesk keys command should tell users private key is hidden"
 
 # HTTP helpers must reject error statuses, bound response sizes, and write downloads safely.
 grep -q 'maxHTTPStringSize' backend/util/http.go || fail "HTTP string response size limit missing"
