@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path"
+	"path/filepath"
 	"runtime"
 	"rustdesk-api-server-pro/helper/github"
 	"rustdesk-api-server-pro/helper/rustdesk"
@@ -92,7 +92,7 @@ var rustdeskInstallCmd = &cobra.Command{
 			fmt.Println(matchedAsset.Name, "unzipped error: ", err)
 			os.Exit(1)
 		}
-		src := path.Join(rustdesk.GetRustdeskServerBinDir(), arch)
+		src := filepath.Join(rustdesk.GetRustdeskServerBinDir(), arch)
 		if err = util.MoveFiles(src, rustdesk.GetRustdeskServerBinDir()); err != nil {
 			fmt.Println("rustdesk-server move files error:", err)
 			os.Exit(1)
