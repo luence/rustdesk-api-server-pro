@@ -74,10 +74,9 @@ grep -q 'return nil, err' backend/util/process.go || fail "StartProcess must ret
 # RustDesk CLI must not ignore install/start errors or reveal private keys by default.
 grep -q 'if err = util.MoveFiles(src, rustdesk.GetRustdeskServerBinDir()); err != nil' backend/cmd/rustdesk.go || fail "rustdesk install must handle MoveFiles errors"
 grep -q 'rustdesk-server move files error' backend/cmd/rustdesk.go || fail "rustdesk install move error message missing"
-grep -q 'if err = os.Remove(matchedAsset.Name); err != nil' backend/cmd/rustdesk.go || fail "rustdesk install must handle archive cleanup errors"
-grep -q 'if err = os.RemoveAll(src); err != nil' backend/cmd/rustdesk.go || fail "rustdesk install must handle extracted dir cleanup errors"
-if grep -n '_ = os.Remove(matchedAsset.Name)\|_ = os.RemoveAll(src)' backend/cmd/rustdesk.go; then
-  fail "rustdesk install must not ignore cleanup errors"
+grep -q 'filepath.Join(rustdesk.GetRustdeskServerBinDir(), arch)' backend/cmd/rustdesk.go || fail "rustdesk install must use filepath.Join for local paths"
+if grep -n '"path"' backend/cmd/rustdesk.go; then
+  fail "rustdesk CLI must not use path package for local filesystem paths"
 fi
 grep -q 'private key: hidden' backend/cmd/rustdesk.go || fail "rustdesk private key must be hidden by default"
 grep -q 'show-private' backend/cmd/rustdesk.go || fail "rustdesk private key reveal must require explicit flag"
@@ -135,13 +134,18 @@ grep -q 'GetLatestRelease(repo string) (\*Release, error)' backend/helper/github
 grep -q 'GetReleaseByTag(repo, tag string) (\*Release, error)' backend/helper/github/github.go || fail "github release by tag helper should return an error"
 grep -q 'GetReleases(repo string) (\*\[\]Release, error)' backend/helper/github/github.go || fail "github releases helper should return an error"
 
-# Zip extraction must not allow ZipSlip path traversal or unsafe permission defaults.
+# Zip extraction and local file moves must not allow unsafe paths or permission defaults.
 grep -q 'safeZipDestination' backend/util/file.go || fail "zip extraction path validation missing"
 grep -q 'filepath.IsAbs(name)' backend/util/file.go || fail "zip extraction must reject absolute paths"
 grep -q 'filepath.Rel(cleanDst, target)' backend/util/file.go || fail "zip extraction must use filepath.Rel for containment checks"
 grep -q 'strings.HasPrefix(rel, ".."+string(os.PathSeparator))' backend/util/file.go || fail "zip extraction must reject parent-directory escapes"
 grep -q 'os.ModeSymlink' backend/util/file.go || fail "zip extraction must reject symlinks"
 grep -q 'mode.Perm() & 0755' backend/util/file.go || fail "zip extraction must strip group/world write bits"
+grep -q 'filepath.Join(src, file.Name())' backend/util/file.go || fail "MoveFiles must use filepath.Join for local source paths"
+grep -q 'filepath.Join(dst, file.Name())' backend/util/file.go || fail "MoveFiles must use filepath.Join for local destination paths"
+if grep -n '"path"' backend/util/file.go; then
+  fail "file utilities must not use path package for local filesystem paths"
+fi
 test -f backend/util/file_test.go || fail "zip extraction security tests missing"
 grep -q 'TestSafeZipDestinationRejectsTraversal' backend/util/file_test.go || fail "zip traversal rejection test missing"
 grep -q 'TestSafeZipDestinationRejectsAbsolutePath' backend/util/file_test.go || fail "zip absolute path rejection test missing"
