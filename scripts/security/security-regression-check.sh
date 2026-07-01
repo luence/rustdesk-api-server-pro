@@ -35,6 +35,13 @@ grep -q 'CHANGE_ME_TO_A_RANDOM_32_BYTE_SECRET' backend/config/config.go || fail 
 grep -q 'generated_sign_key=' docker/start.sh || fail "Docker first-run signKey generation missing"
 grep -q 'CHANGE_ME_TO_A_RANDOM_32_BYTE_SECRET' docker/start.sh || fail "Docker placeholder signKey detection missing"
 
+# CLI entrypoint must return a normal failure exit code instead of panicking.
+if grep -n 'panic(err)' backend/main.go; then
+  fail "CLI entrypoint must not panic on command errors"
+fi
+grep -q 'fmt.Fprintln(os.Stderr, err)' backend/main.go || fail "CLI entrypoint must print command errors to stderr"
+grep -q 'os.Exit(1)' backend/main.go || fail "CLI entrypoint must exit with code 1 on command errors"
+
 # Scheduler startup must return errors instead of panicking or silently ignoring job creation failures.
 if grep -n 'panic(err)' backend/app/jobs.go; then
   fail "scheduler startup must return errors instead of panicking"
