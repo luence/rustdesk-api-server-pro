@@ -157,18 +157,23 @@ var rustdeskStatusCmd = &cobra.Command{
 
 var rustdeskKeysCmd = &cobra.Command{
 	Use:                   "keys",
-	Short:                 "Show rustdesk-server keys",
+	Short:                 "Show rustdesk-server public key",
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		public, private := rustdesk.Keys()
 
-		fmt.Println("public keys:")
+		fmt.Println("public key:")
 		fmt.Println(public)
 
-		fmt.Println("")
-
-		fmt.Println("private keys:")
-		fmt.Println(private)
+		showPrivate, _ := cmd.Flags().GetBool("show-private")
+		if showPrivate {
+			fmt.Println("")
+			fmt.Println("private key:")
+			fmt.Println(private)
+		} else {
+			fmt.Println("")
+			fmt.Println("private key: hidden; use --show-private only when you explicitly need to reveal it")
+		}
 	},
 }
 
@@ -199,6 +204,7 @@ func init() {
 	rustdeskServerCmd.AddCommand(rustdeskStopCmd)
 	rustdeskServerCmd.AddCommand(rustdeskRestartCmd)
 	rustdeskServerCmd.AddCommand(rustdeskStatusCmd)
+	rustdeskKeysCmd.Flags().Bool("show-private", false, "Print the private key; avoid using this unless required")
 	rustdeskServerCmd.AddCommand(rustdeskKeysCmd)
 
 	rustdeskListCmd.Flags().StringP("proxy", "p", "", "Setting up a proxy to download rustdesk-server program (e.g [http|https|socks5]://proxy-host:port)")
