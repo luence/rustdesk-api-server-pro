@@ -14,7 +14,10 @@ type ProcessAttr struct {
 	Stderr io.Writer
 }
 
-func StartProcess(name string, attr *ProcessAttr) *exec.Cmd {
+func StartProcess(name string, attr *ProcessAttr) (*exec.Cmd, error) {
+	if attr == nil {
+		attr = &ProcessAttr{}
+	}
 	p := exec.Command(name, attr.Args...)
 	p.Env = attr.Env
 	p.Dir = attr.Dir
@@ -22,7 +25,7 @@ func StartProcess(name string, attr *ProcessAttr) *exec.Cmd {
 	p.Stdout = attr.Stdout
 	p.Stderr = attr.Stderr
 	if err := p.Start(); err != nil {
-		panic(err)
+		return nil, err
 	}
-	return p
+	return p, nil
 }
