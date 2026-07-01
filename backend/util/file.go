@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 )
@@ -127,8 +126,8 @@ func MoveFiles(src, dst string) error {
 		return err
 	}
 	for _, file := range files {
-		srcPath := path.Join(src, file.Name())
-		dstPath := path.Join(dst, file.Name())
+		srcPath := filepath.Join(src, file.Name())
+		dstPath := filepath.Join(dst, file.Name())
 		if err := os.MkdirAll(dst, 0755); err != nil {
 			return err
 		}
