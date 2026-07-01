@@ -2,13 +2,21 @@ package util
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/schollz/progressbar/v3"
+)
+
+const (
+	maxHTTPStringSize = 10 * 1024 * 1024
+	maxDownloadSize   = 1024 * 1024 * 1024
 )
 
 var _httpProxy = ""
@@ -18,7 +26,7 @@ func SetHttpProxy(proxy string) {
 }
 
 func HttpClient() (*http.Client, error) {
-	client := http.DefaultClient
+	client := &http.Client{Timeout: 60 * time.Second}
 	if _httpProxy != "" {
 		proxyUrl, err := url.Parse(_httpProxy)
 		if err != nil {
@@ -30,57 +38,103 @@ func HttpClient() (*http.Client, error) {
 			return nil, errors.New("only support http, https, socks5 proxy protocols")
 		}
 
-		client = &http.Client{
-			Transport: &http.Transport{
-				Proxy: http.ProxyURL(proxyUrl),
-			},
+		client.Transport = &http.Transport{
+			Proxy: http.ProxyURL(proxyUrl),
 		}
 	}
 	return client, nil
 }
 
 func HttpGetString(remoteAddr string) (string, error) {
-	req, err := http.NewRequest("GET", remoteAddr, nil)
+	req, err := http.NewRequest(http.MethodGet, remoteAddr, nil)
 	if err != nil {
 		return "", err
 	}
-	client, _ := HttpClient()
+	client, err := HttpClient()
+	if err != nil {
+		return "", err
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	return string(body), err
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return "", fmt.Errorf("http get failed with status %d", resp.StatusCode)
+	}
+	if resp.ContentLength > maxHTTPStringSize {
+		return "", fmt.Errorf("http response too large: %d bytes", resp.ContentLength)
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxHTTPStringSize+1))
+	if err != nil {
+		return "", err
+	}
+	if len(body) > maxHTTPStringSize {
+		return "", errors.New("http response too large")
+	}
+	return string(body), nil
 }
 
 func DownloadFile(remoteAddr, filename string, showConsoleProgressBar bool) error {
-	req, err := http.NewRequest("GET", remoteAddr, nil)
+	req, err := http.NewRequest(http.MethodGet, remoteAddr, nil)
 	if err != nil {
 		return err
 	}
-	httpClient, _ := HttpClient()
+	httpClient, err := HttpClient()
+	if err != nil {
+		return err
+	}
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return fmt.Errorf("download failed with status %d", resp.StatusCode)
+	}
+	if resp.ContentLength > maxDownloadSize {
+		return fmt.Errorf("download too large: %d bytes", resp.ContentLength)
+	}
 
-	f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, os.ModePerm)
+	dir := filepath.Dir(filename)
+	tmpFile, err := os.CreateTemp(dir, filepath.Base(filename)+".*.tmp")
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	tmpName := tmpFile.Name()
+	cleanup := true
+	defer func() {
+		if cleanup {
+			_ = os.Remove(tmpName)
+		}
+	}()
 
+	reader := io.LimitReader(resp.Body, maxDownloadSize+1)
+	var written int64
 	if showConsoleProgressBar {
-		bar := progressbar.DefaultBytes(
-			resp.ContentLength,
-			"Downloading",
-		)
-		io.Copy(io.MultiWriter(f, bar), resp.Body)
+		bar := progressbar.DefaultBytes(resp.ContentLength, "Downloading")
+		written, err = io.Copy(io.MultiWriter(tmpFile, bar), reader)
 	} else {
-		io.Copy(f, resp.Body)
+		written, err = io.Copy(tmpFile, reader)
 	}
-
+	if err != nil {
+		_ = tmpFile.Close()
+		return err
+	}
+	if written > maxDownloadSize {
+		_ = tmpFile.Close()
+		return errors.New("download too large")
+	}
+	if err = tmpFile.Chmod(0644); err != nil {
+		_ = tmpFile.Close()
+		return err
+	}
+	if err = tmpFile.Close(); err != nil {
+		return err
+	}
+	if err = os.Rename(tmpName, filename); err != nil {
+		return err
+	}
+	cleanup = false
 	return nil
 }
