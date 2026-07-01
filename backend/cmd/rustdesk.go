@@ -93,9 +93,12 @@ var rustdeskInstallCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		src := path.Join(rustdesk.GetRustdeskServerBinDir(), arch)
-		util.MoveFiles(src, rustdesk.GetRustdeskServerBinDir())
-		os.Remove(matchedAsset.Name)
-		os.RemoveAll(src)
+		if err = util.MoveFiles(src, rustdesk.GetRustdeskServerBinDir()); err != nil {
+			fmt.Println("rustdesk-server move files error:", err)
+			os.Exit(1)
+		}
+		_ = os.Remove(matchedAsset.Name)
+		_ = os.RemoveAll(src)
 		fmt.Println("The rustdesk-server has been initialized.")
 	},
 }
@@ -109,7 +112,11 @@ var rustdeskStartCmd = &cobra.Command{
 		if ret {
 			fmt.Println("rustdesk-server started")
 		} else {
-			fmt.Println("rustdesk-server failed to start:", err.Error())
+			if err != nil {
+				fmt.Println("rustdesk-server failed to start:", err.Error())
+			} else {
+				fmt.Println("rustdesk-server failed to start")
+			}
 			os.Exit(1)
 		}
 	},
@@ -133,9 +140,13 @@ var rustdeskRestartCmd = &cobra.Command{
 		rustdesk.StopServer()
 		fmt.Println("rustdesk-server stopped")
 
-		_, err := rustdesk.StartServer()
-		if err != nil {
-			fmt.Println("rustdesk-server start failed:", err.Error())
+		ret, err := rustdesk.StartServer()
+		if !ret {
+			if err != nil {
+				fmt.Println("rustdesk-server start failed:", err.Error())
+			} else {
+				fmt.Println("rustdesk-server start failed")
+			}
 			os.Exit(1)
 		}
 		fmt.Println("rustdesk-server started")
