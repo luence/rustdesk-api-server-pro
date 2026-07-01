@@ -144,20 +144,22 @@ func isProcessRunning(pid int) bool {
 	return err == nil && running
 }
 
-func Keys() (public, private string) {
+func PublicKey() string {
 	publicKeysBytes, err := os.ReadFile(filepath.Join(serverBinDir, "id_ed25519.pub"))
 	if err != nil {
-		return "", ""
+		return ""
 	}
+	return string(publicKeysBytes)
+}
 
+func PrivateKey() string {
 	privateKeysBytes, err := os.ReadFile(filepath.Join(serverBinDir, "id_ed25519"))
 	if err != nil {
-		return "", ""
+		return ""
 	}
+	return string(privateKeysBytes)
+}
 
-	public = string(publicKeysBytes)
-
-	private = string(privateKeysBytes)
-
-	return public, private
+func Keys() (public, private string) {
+	return PublicKey(), PrivateKey()
 }
