@@ -61,8 +61,14 @@ grep -q 'GetReleases(repo string) (\*\[\]Release, error)' backend/helper/github/
 # Zip extraction must not allow ZipSlip path traversal or unsafe permission defaults.
 grep -q 'safeZipDestination' backend/util/file.go || fail "zip extraction path validation missing"
 grep -q 'filepath.IsAbs(name)' backend/util/file.go || fail "zip extraction must reject absolute paths"
-grep -q 'strings.HasPrefix(target, cleanDst+string(os.PathSeparator))' backend/util/file.go || fail "zip extraction must enforce destination prefix"
+grep -q 'filepath.Rel(cleanDst, target)' backend/util/file.go || fail "zip extraction must use filepath.Rel for containment checks"
+grep -q 'strings.HasPrefix(rel, ".."+string(os.PathSeparator))' backend/util/file.go || fail "zip extraction must reject parent-directory escapes"
 grep -q 'os.ModeSymlink' backend/util/file.go || fail "zip extraction must reject symlinks"
+grep -q 'mode.Perm() & 0755' backend/util/file.go || fail "zip extraction must strip group/world write bits"
+test -f backend/util/file_test.go || fail "zip extraction security tests missing"
+grep -q 'TestSafeZipDestinationRejectsTraversal' backend/util/file_test.go || fail "zip traversal rejection test missing"
+grep -q 'TestSafeZipDestinationRejectsAbsolutePath' backend/util/file_test.go || fail "zip absolute path rejection test missing"
+grep -q 'TestSafeModesRemoveGroupAndWorldWrite' backend/util/file_test.go || fail "zip permission hardening test missing"
 if grep -n 'MkdirAll(.*os.ModePerm' backend/util/file.go; then
   fail "zip extraction must not create world-writable directories"
 fi
