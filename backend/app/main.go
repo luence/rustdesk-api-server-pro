@@ -14,7 +14,7 @@ func newApp(cfg *config.ServerConfig) (*iris.Application, error) {
 
 	dbEngine, err := db.NewEngine(cfg.Db)
 	if err != nil {
-		app.Logger().Fatal("Db Engine create error:", err)
+		app.Logger().Error("Db Engine create error:", err)
 		return nil, err
 	}
 	app.RegisterDependency(dbEngine, cfg)
