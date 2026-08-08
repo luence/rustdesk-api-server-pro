@@ -43,11 +43,8 @@ func TestOAuthProviderService_WebauthAdminReturnsOfficialClientResult(t *testing
 		AccessToken string `json:"access_token"`
 		Type        string `json:"type"`
 		User        struct {
-			Name          string         `json:"name"`
-			Status        int            `json:"status"`
-			Info          map[string]any `json:"info"`
-			IsAdmin       bool           `json:"is_admin"`
-			ThirdAuthType string         `json:"third_auth_type"`
+			Name string         `json:"name"`
+			Info map[string]any `json:"info"`
 		} `json:"user"`
 	}
 	if err = json.Unmarshal([]byte(result), &body); err != nil {
@@ -56,11 +53,16 @@ func TestOAuthProviderService_WebauthAdminReturnsOfficialClientResult(t *testing
 	if body.AccessToken == "" || body.Type != "access_token" {
 		t.Fatalf("unexpected official auth body: %s", result)
 	}
-	if body.User.IsAdmin {
-		t.Fatalf("client auth body must not grant admin privileges")
-	}
-	if body.User.Name == "" || body.User.Status != 1 || body.User.Info == nil || body.User.ThirdAuthType != "webauth" {
+	if body.User.Name == "" || body.User.Info == nil {
 		t.Fatalf("client auth body does not match official RustDesk schema: %s", result)
+	}
+	var raw map[string]any
+	if err = json.Unmarshal([]byte(result), &raw); err != nil {
+		t.Fatalf("decode minimal auth body: %v", err)
+	}
+	rawUser, _ := raw["user"].(map[string]any)
+	if len(raw) != 3 || len(rawUser) != 2 {
+		t.Fatalf("client auth body must contain only official required fields: %s", result)
 	}
 
 	cachedResult, err := svc.ConsumePollAndExchange(pollToken)

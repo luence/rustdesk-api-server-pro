@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/kataras/iris/v12"
 	"xorm.io/xorm"
 )
 
@@ -116,6 +115,21 @@ type oauthPollEntry struct {
 	ExpiresAt time.Time
 	Result    string
 }
+
+// rustdeskClientAuthBody 仅包含 RustDesk 官方客户端认证响应的必需字段。
+// 可选字段在不同客户端构建中曾出现类型差异，省略后由客户端使用官方默认值。
+type rustdeskClientAuthBody struct {
+	AccessToken string                 `json:"access_token"`
+	Type        string                 `json:"type"`
+	User        rustdeskClientAuthUser `json:"user"`
+}
+
+type rustdeskClientAuthUser struct {
+	Name string                 `json:"name"`
+	Info rustdeskClientUserInfo `json:"info"`
+}
+
+type rustdeskClientUserInfo struct{}
 
 var globalOAuthRuntimeStore = &oauthRuntimeStore{
 	states:   map[string]oauthStateEntry{},
@@ -2006,30 +2020,7 @@ func (s *OAuthProviderService) ConsumePollAndExchange(pollToken string) (string,
 		if tokenErr != nil {
 			return "", tokenErr
 		}
-		var account model.OAuthAccount
-		if item.Provider != "webauth" {
-			_, _ = s.db.Where("user_id = ? and provider = ? and is_admin = 0 and status = 1", user.Id, item.Provider).Get(&account)
-		}
-		resultBytes, _ := json.Marshal(iris.Map{
-			"access_token": token,
-			"type":         "access_token",
-			"user": iris.Map{
-				"name":         user.Name,
-				"display_name": user.Name,
-				"avatar":       account.Picture,
-				"email":        user.Email,
-				"note":         user.Note,
-				"status":       user.Status,
-				"info": iris.Map{
-					"email_verification":       false,
-					"email_alarm_notification": false,
-					"login_device_whitelist":   []interface{}{},
-					"other":                    iris.Map{},
-				},
-				"is_admin":        false,
-				"third_auth_type": item.Provider,
-			},
-		})
+		resultBytes, _ := json.Marshal(newRustdeskClientAuthBody(token, &user))
 		resultStr := string(resultBytes)
 		_, _ = s.db.Where("id = ?", session.Id).Cols("result").Update(&model.OAuthLoginSession{Result: resultStr})
 		return resultStr, nil
@@ -2064,35 +2055,27 @@ func (s *OAuthProviderService) ConsumePollAndExchange(pollToken string) (string,
 	if tokenErr != nil {
 		return "", tokenErr
 	}
-	var account model.OAuthAccount
-	if item.Provider != "webauth" {
-		_, _ = s.db.Where("user_id = ? and provider = ? and is_admin = 0 and status = 1", user.Id, item.Provider).Get(&account)
-	}
-	resultBytes, _ := json.Marshal(iris.Map{
-		"access_token": token,
-		"type":         "access_token",
-		"user": iris.Map{
-			"name":         user.Name,
-			"display_name": user.Name,
-			"avatar":       account.Picture,
-			"email":        user.Email,
-			"note":         user.Note,
-			"status":       user.Status,
-			"info": iris.Map{
-				"email_verification":       false,
-				"email_alarm_notification": false,
-				"login_device_whitelist":   []interface{}{},
-				"other":                    iris.Map{},
-			},
-			"is_admin":        false,
-			"third_auth_type": item.Provider,
-		},
-	})
+	resultBytes, _ := json.Marshal(newRustdeskClientAuthBody(token, &user))
 	resultStr := string(resultBytes)
 	globalOAuthRuntimeStore.mu.Lock()
 	globalOAuthRuntimeStore.polls[pollToken] = oauthPollEntry{Ticket: v.Ticket, ExpiresAt: v.ExpiresAt, Result: resultStr}
 	globalOAuthRuntimeStore.mu.Unlock()
 	return resultStr, nil
+}
+
+func newRustdeskClientAuthBody(token string, user *model.User) rustdeskClientAuthBody {
+	name := strings.TrimSpace(user.Name)
+	if name == "" {
+		name = user.Username
+	}
+	return rustdeskClientAuthBody{
+		AccessToken: token,
+		Type:        "access_token",
+		User: rustdeskClientAuthUser{
+			Name: name,
+			Info: rustdeskClientUserInfo{},
+		},
+	}
 }
 
 func (s *OAuthProviderService) peekPollEntryRaw(pollToken string) (oauthPollEntry, bool) {
