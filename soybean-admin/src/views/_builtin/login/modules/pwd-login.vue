@@ -16,10 +16,14 @@ const { formRef, validate } = useNaiveForm();
 const oauthProviders = ref<Api.Auth.OAuthProvider[]>([]);
 const activeProvider = ref('');
 const clientWebauthCompleted = ref(false);
+const clientWebauthLoading = ref(false);
 const clientPollToken = computed(() => {
   if (route.name !== 'client-webauth') return '';
   return typeof route.query.poll_token === 'string' ? route.query.poll_token : '';
 });
+const clientCallbackUrl = computed(() =>
+  clientPollToken.value ? `rustdesk://oauth/callback?poll_token=${encodeURIComponent(clientPollToken.value)}` : ''
+);
 
 const model: Api.Form.LoginForm = reactive({
   username: '',
@@ -65,18 +69,33 @@ const rules = computed<Record<keyof Api.Form.LoginForm, App.Global.FormRule[]>>(
 async function handleSubmit() {
   await validate();
   if (clientPollToken.value) {
-    const { data, error } = await fetchConfirmClientWebauth(clientPollToken.value, model);
-    if (!error && data?.ok) {
-      clientWebauthCompleted.value = true;
-      return;
+    if (clientWebauthLoading.value) return;
+    clientWebauthLoading.value = true;
+    try {
+      const { data, error } = await fetchConfirmClientWebauth(clientPollToken.value, model);
+      if (!error && data?.ok) {
+        clientWebauthCompleted.value = true;
+        window.setTimeout(launchRustDesk, 150);
+        return;
+      }
+      if (error?.response?.data?.message?.includes('CaptchaError')) handleCaptcha();
+    } finally {
+      clientWebauthLoading.value = false;
     }
-    if (error?.response?.data?.message?.includes('CaptchaError')) handleCaptcha();
     return;
   }
   const err = await authStore.login(model);
   if (err?.response?.data?.message?.includes('CaptchaError')) {
     handleCaptcha();
   }
+}
+
+function launchRustDesk() {
+  if (clientCallbackUrl.value) window.location.href = clientCallbackUrl.value;
+}
+
+function closeClientWebauthPage() {
+  window.close();
 }
 
 async function handleCaptcha() {
@@ -132,12 +151,18 @@ onMounted(() => {
 </script>
 
 <template>
-  <NResult
-    v-if="clientWebauthCompleted"
-    status="success"
-    :title="$t('page.login.common.loginSuccess')"
-    description="认证信息已发送到 RustDesk 客户端，请返回客户端继续使用。"
-  />
+  <NResult v-if="clientWebauthCompleted" status="success" :title="$t('page.login.common.loginSuccess')">
+    <template #footer>
+      <NSpace vertical :size="12">
+        <p class="text-center text-14px text-gray-500">认证信息已发送，请返回 RustDesk 客户端继续使用。</p>
+        <NButton type="primary" round block @click="launchRustDesk">
+          <template #icon><SvgIcon icon="mdi:remote-desktop" /></template>
+          返回 RustDesk
+        </NButton>
+        <NButton round block @click="closeClientWebauthPage">关闭页面</NButton>
+      </NSpace>
+    </template>
+  </NResult>
   <NForm v-else ref="formRef" :model="model" :rules="rules" size="medium" :show-label="false">
     <NFormItem path="username">
       <NInput v-model:value="model.username" :placeholder="$t('page.login.common.userNamePlaceholder')" />
@@ -172,7 +197,7 @@ onMounted(() => {
         size="medium"
         round
         block
-        :loading="authStore.loginLoading"
+        :loading="clientPollToken ? clientWebauthLoading : authStore.loginLoading"
         @click="handleSubmit"
       >
         {{ $t('common.confirm') }}
