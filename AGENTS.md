@@ -42,37 +42,24 @@
 ## 部署环境
 
 ### 远程设备
-- **地址**: `ssh -p 22 <user>@<server>`
-- **类型**: 群晖NAS
+- **地址**: 通过仓库外的私有部署配置提供
+- **类型**: NAS / Linux Docker 主机
 - **部署方式**: Docker
 - **容器名**: `rustdesk-api-server-pro`
-- **端口**: 16888
+- **默认端口**: 12345
 - **网络模式**: host
 
 ### 部署路径
-- **数据目录**: `/opt/rustdesk-api-server-pro/`
-- **更新脚本**: `/opt/rustdesk-api-server-pro/update-rustdesk-api.sh`
-- **配置文件**: `/opt/rustdesk-api-server-pro/server.yaml`
-- **数据库**: `/opt/rustdesk-api-server-pro/server.db`
+- 目标路径保存在仓库外的私有部署配置中
 
 ### 部署命令
 ```bash
 # 编译
 cd backend && go build -o rustdesk-api-server.exe
 
-# 上传
-scp -P 22 backend/rustdesk-api-server.exe <user>@<server>:/opt/rustdesk-api-server-pro/
-
-# 重启容器
-ssh -p 22 <user>@<server> 'docker restart rustdesk-api-server-pro'
-
-# 查看日志
-ssh -p 22 <user>@<server> 'docker logs rustdesk-api-server-pro --tail 100'
-```
-
-### Git 代理配置
-```bash
-git config --global http.proxy http://127.0.0.1:7890
+# 更新、重启和日志命令在目标主机本地执行
+docker restart rustdesk-api-server-pro
+docker logs rustdesk-api-server-pro --tail 100
 ```
 
 ## 项目结构
@@ -153,22 +140,22 @@ rustdesk-api-server-pro/
 
 ### 查看日志
 ```bash
-ssh -p 22 <user>@<server> 'docker logs rustdesk-api-server-pro --tail 200 -f'
+docker logs rustdesk-api-server-pro --tail 200 -f
 ```
 
 ### 检查容器状态
 ```bash
-ssh -p 22 <user>@<server> 'docker ps -a | grep rustdesk-api-server-pro'
+docker ps -a | grep rustdesk-api-server-pro
 ```
 
 ### 进入容器
 ```bash
-ssh -p 22 <user>@<server> 'docker exec -it rustdesk-api-server-pro sh'
+docker exec -it rustdesk-api-server-pro sh
 ```
 
 ### 检查数据库
 ```bash
-ssh -p 22 <user>@<server> 'docker exec -it rustdesk-api-server-pro sqlite3 /app/data/server.db'
+docker exec -it rustdesk-api-server-pro sqlite3 /app/data/server.db
 ```
 
 ## 参考文档

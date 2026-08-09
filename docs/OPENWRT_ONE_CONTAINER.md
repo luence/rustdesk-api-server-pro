@@ -107,8 +107,8 @@ docker run -d \
   --label "name=RustDesk API Server Pro" \
   --label "desc=RustDesk API 增强服务端：管理后台前端、后端 API、第三方登录、SQLite 数据持久化" \
   --label "ports=12345/tcp" \
-  -e ADMIN_USER=admin \
-  -e ADMIN_PASS='ChangeMe123!' \
+  -e ADMIN_USER=test \
+  -e ADMIN_PASS='testadmin' \
   -v /mnt/docker/rustdesk-api/server.yaml:/app/server.yaml \
   -v /mnt/docker/rustdesk-api/data:/app/data \
   ghcr.io/liyan-lucky/rustdesk-api-server-pro:latest

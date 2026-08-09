@@ -157,12 +157,16 @@ services:
     container_name: rustdesk-api-server-pro
     image: ghcr.io/liyan-lucky/rustdesk-api-server-pro:latest
     environment:
-      - "ADMIN_USER=admin"
-      - "ADMIN_PASS=ChangeMe123!"
+      - "ADMIN_USER=${ADMIN_USER:-test}"
+      - "ADMIN_PASS=${ADMIN_PASS:-testadmin}"
+      - "PORT=12345"
+      - "RUSTDESK_HBBS_DIR=/root"
+    ports:
+      - "${FNOS_HTTP_PORT:-12345}:12345"
     volumes:
       - ./server.yaml:/app/server.yaml
       - ./data:/app/data
-    network_mode: host
+      - /vol1/docker/rustdesk/hbbs:/root:ro
     restart: unless-stopped
     labels:
       name: "RustDesk API Server Pro"

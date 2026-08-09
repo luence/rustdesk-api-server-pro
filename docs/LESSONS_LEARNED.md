@@ -102,19 +102,19 @@ GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o rustdesk-api-server-pro
 ### 上传到容器并重启
 ```bash
 # 上传到 NAS /tmp/
-scp -P 22 backend/rustdesk-api-server-pro <user>@<server>:/tmp/
+scp backend/rustdesk-api-server-pro <user>@<server>:/tmp/
 
 # 复制到容器并设置权限
-ssh -p 22 <user>@<server> 'docker cp /tmp/rustdesk-api-server-pro rustdesk-api-server-pro:/app/rustdesk-api-server-pro'
-ssh -p 22 <user>@<server> 'docker exec rustdesk-api-server-pro chmod 755 /app/rustdesk-api-server-pro'
+ssh <user>@<server> 'docker cp /tmp/rustdesk-api-server-pro rustdesk-api-server-pro:/app/rustdesk-api-server-pro'
+ssh <user>@<server> 'docker exec rustdesk-api-server-pro chmod 755 /app/rustdesk-api-server-pro'
 
 # 重启容器
-ssh -p 22 <user>@<server> 'docker restart rustdesk-api-server-pro'
+ssh <user>@<server> 'docker restart rustdesk-api-server-pro'
 ```
 
 ### 查看日志
 ```bash
-ssh -p 22 <user>@<server> 'docker logs rustdesk-api-server-pro --tail 100'
+ssh <user>@<server> 'docker logs rustdesk-api-server-pro --tail 100'
 ```
 
 ### 部署关键教训

@@ -8,6 +8,12 @@ fi
 
 mkdir -p /app/data
 
+# 首次安装默认值可由容器环境变量覆盖；已有数据目录不会重置账号。
+ADMIN_USER="${ADMIN_USER:-test}"
+ADMIN_PASS="${ADMIN_PASS:-testadmin}"
+PORT="${PORT:-12345}"
+export ADMIN_USER ADMIN_PASS PORT
+
 # Make mounted config at /app/server.yaml effective, because the binary reads server.yaml from CWD.
 # The process runs in /app/data, so keep /app/data/server.yaml in sync with /app/server.yaml.
 # Only copy when /app/data/server.yaml does not exist yet, to avoid overwriting user edits.
@@ -20,7 +26,7 @@ cd /app/data
 # Allow PORT env var to override the listening port (e.g. Docker -p 21114:21114 -e PORT=21114).
 # The Go binary also reads PORT env var directly, but updating server.yaml ensures
 # config display and health probes are consistent.
-if [ -n "${PORT:-}" ]; then
+if [ -n "$PORT" ]; then
     port_val="$PORT"
     case "$port_val" in :*) ;; *) port_val=":$port_val" ;; esac
     if [ -f /app/data/server.yaml ]; then
@@ -48,7 +54,7 @@ fi
 /app/rustdesk-api-server-pro sync
 #fi
 
-if [ ! -f /app/data/.init.lock ] && [ -n "${ADMIN_USER:-}" ] && [ -n "${ADMIN_PASS:-}" ]; then
+if [ ! -f /app/data/.init.lock ] && [ -n "$ADMIN_USER" ] && [ -n "$ADMIN_PASS" ]; then
     /app/rustdesk-api-server-pro user add "$ADMIN_USER" "$ADMIN_PASS" --admin
     touch /app/data/.init.lock
 fi

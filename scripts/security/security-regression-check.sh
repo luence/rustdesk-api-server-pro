@@ -37,6 +37,17 @@ grep -q 'CHANGE_ME_TO_A_RANDOM_32_BYTE_SECRET' backend/config/config.go || fail 
 grep -q 'generated_sign_key=' docker/start.sh || fail "Docker first-run signKey generation missing"
 grep -q 'CHANGE_ME_TO_A_RANDOM_32_BYTE_SECRET' docker/start.sh || fail "Docker placeholder signKey detection missing"
 
+# 容器首次安装参数和更新脚本必须保持可覆盖、可持久化，并保留桥接端口映射。
+grep -q 'ADMIN_USER="${ADMIN_USER:-test}"' docker/start.sh || fail "Docker default admin username mismatch"
+grep -q 'ADMIN_PASS="${ADMIN_PASS:-testadmin}"' docker/start.sh || fail "Docker default admin password mismatch"
+grep -q 'PORT="${PORT:-12345}"' docker/start.sh || fail "Docker default port mismatch"
+grep -q 'HostConfig.PortBindings' scripts/deploy/update-rustdesk-api.sh || fail "Docker updater must preserve port bindings"
+grep -q 'Config.Env' scripts/deploy/update-rustdesk-api.sh || fail "Docker updater must preserve container environment"
+grep -q 'RUNTIME_ENV_FILE' docker/update-openwrt-one-container.sh || fail "one-container updater must persist bootstrap parameters"
+if grep -R -n -E 'private-nas-host|private-dynamic-domain|<user>@|/legacy/rustdesk-server' AGENTS.md docs docker README.md README_EN.md; then
+  fail "repository documentation contains private deployment information"
+fi
+
 # CLI entrypoint must return a normal failure exit code instead of panicking.
 if grep -n 'panic(err)' backend/main.go; then
   fail "CLI entrypoint must not panic on command errors"

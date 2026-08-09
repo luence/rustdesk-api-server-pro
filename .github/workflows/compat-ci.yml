@@ -91,8 +91,8 @@ jobs:
           docker run -d \
             --name rustdesk-api-compat-ci \
             --network host \
-            -e ADMIN_USER=admin \
-            -e ADMIN_PASS=ChangeMe123! \
+            -e ADMIN_USER=test \
+            -e ADMIN_PASS=testadmin \
             -v "$PWD/compat-ci-server.yaml:/app/server.yaml:ro" \
             rustdesk-api-server-pro:compat-ci
 

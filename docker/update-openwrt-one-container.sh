@@ -13,9 +13,10 @@ BACKUP_DIR="${BACKUP_DIR:-/mnt/docker/backup/rustdesk-api}"
 IMAGE="${IMAGE:-ghcr.io/liyan-lucky/rustdesk-api-server-pro:latest}"
 CONTAINER="${CONTAINER:-rustdesk-api-server-pro}"
 LEGACY_WEB_CONTAINER="${LEGACY_WEB_CONTAINER:-rustdesk-web}"
-PORT="${PORT:-12345}"
-ADMIN_USER="${ADMIN_USER:-admin}"
-ADMIN_PASS="${ADMIN_PASS:-ChangeMe123!}"
+PORT="${PORT:-}"
+ADMIN_USER="${ADMIN_USER:-}"
+ADMIN_PASS="${ADMIN_PASS:-}"
+RUNTIME_ENV_FILE="${RUNTIME_ENV_FILE:-$BASE_DIR/runtime.env}"
 REMOVE_LEGACY_WEB="${REMOVE_LEGACY_WEB:-true}"
 CLEAN_OLD_IMAGES="${CLEAN_OLD_IMAGES:-true}"
 
@@ -97,6 +98,34 @@ require_cmd date
 
 log "创建目录"
 mkdir -p "$BASE_DIR/data" "$BACKUP_DIR"
+
+# 显式参数优先，其次读取旧容器，再读取持久化参数文件，最后使用首次安装默认值。
+read_saved_env() {
+  key="$1"
+  [ -f "$RUNTIME_ENV_FILE" ] || return 0
+  sed -n "s/^${key}=//p" "$RUNTIME_ENV_FILE" | tail -n1
+}
+read_container_env() {
+  key="$1"
+  docker inspect "$CONTAINER" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    sed -n "s/^${key}=//p" | tail -n1
+}
+PORT="${PORT:-$(read_container_env PORT)}"
+ADMIN_USER="${ADMIN_USER:-$(read_container_env ADMIN_USER)}"
+ADMIN_PASS="${ADMIN_PASS:-$(read_container_env ADMIN_PASS)}"
+PORT="${PORT:-$(read_saved_env PORT)}"
+ADMIN_USER="${ADMIN_USER:-$(read_saved_env ADMIN_USER)}"
+ADMIN_PASS="${ADMIN_PASS:-$(read_saved_env ADMIN_PASS)}"
+PORT="${PORT:-12345}"
+ADMIN_USER="${ADMIN_USER:-test}"
+ADMIN_PASS="${ADMIN_PASS:-testadmin}"
+
+umask 077
+{
+  printf 'PORT=%s\n' "$PORT"
+  printf 'ADMIN_USER=%s\n' "$ADMIN_USER"
+  printf 'ADMIN_PASS=%s\n' "$ADMIN_PASS"
+} > "$RUNTIME_ENV_FILE"
 
 log "备份当前数据"
 TS="$(date +%Y%m%d-%H%M%S)"

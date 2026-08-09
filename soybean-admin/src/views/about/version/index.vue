@@ -8,8 +8,10 @@ import { fetchLoginCaptchaConfig, fetchSaveLoginCaptchaConfig } from '@/service/
 const defaultCheckUrl = 'https://raw.githubusercontent.com/liyan-lucky/rustdesk-api-server-pro/main/VERSION';
 const storageKey = 'rustdesk-api-update-check-url';
 const commandStorageKey = 'rustdesk-api-update-command-template';
-const updateScript = '/opt/rustdesk-api-server-pro/update-rustdesk-api.sh';
+const updateScript = './update-rustdesk-api.sh';
 const defaultCommandTemplate = updateScript;
+const prepareUpdateScript =
+  'docker cp rustdesk-api-server-pro:/usr/local/share/rustdesk-api-server-pro/update-container.sh ./update-rustdesk-api.sh && chmod 700 ./update-rustdesk-api.sh';
 const authStore = useAuthStore();
 const isAdmin = computed(() => authStore.userInfo.roles.includes('R_SUPER'));
 const checkUrl = ref(localStorage.getItem(storageKey) || defaultCheckUrl);
@@ -27,10 +29,10 @@ const resolvedUpdateCommand = computed(() =>
 );
 const cleanupCommand =
   'docker image prune -f --filter "label=org.opencontainers.image.source=https://github.com/liyan-lucky/rustdesk-api-server-pro" 2>/dev/null; docker image prune -f 2>/dev/null';
-const latestUpdateCommand = computed(() => `${updateScript} && ${cleanupCommand}`);
+const latestUpdateCommand = computed(() => `${prepareUpdateScript} && ${updateScript} && ${cleanupCommand}`);
 const pinnedUpdateCommand = computed(
   () =>
-    `IMAGE=ghcr.io/liyan-lucky/rustdesk-api-server-pro:${latestVersion.value || runningVersion.value} EXPECTED_VERSION=${latestVersion.value || runningVersion.value} ${updateScript} && ${cleanupCommand}`
+    `${prepareUpdateScript} && IMAGE=ghcr.io/liyan-lucky/rustdesk-api-server-pro:${latestVersion.value || runningVersion.value} EXPECTED_VERSION=${latestVersion.value || runningVersion.value} ${updateScript} && ${cleanupCommand}`
 );
 
 function normalizeVersion(value: string) {

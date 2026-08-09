@@ -30,12 +30,16 @@ services:
     container_name: rustdesk-api-server-pro
     image: ghcr.io/liyan-lucky/rustdesk-api-server-pro:latest
     environment:
-      - "ADMIN_USER=admin"
-      - "ADMIN_PASS=ChangeMe123!"
+      - "ADMIN_USER=${ADMIN_USER:-test}"
+      - "ADMIN_PASS=${ADMIN_PASS:-testadmin}"
+      - "PORT=12345"
+      - "RUSTDESK_HBBS_DIR=/root"
+    ports:
+      - "${FNOS_HTTP_PORT:-12345}:12345"
     volumes:
       - ./server.yaml:/app/server.yaml
       - ./data:/app/data
-    network_mode: host
+      - /vol1/docker/rustdesk/hbbs:/root:ro
     restart: unless-stopped
     labels:
       name: "RustDesk API Server Pro"
@@ -46,6 +50,16 @@ YAML
 docker compose up -d
 docker compose logs -f rustdesk-api-server-pro
 ```
+
+飞牛 Docker 使用桥接网络时，可在同目录的 `.env` 中设置宿主机端口，容器内端口固定为 `12345`：
+
+```dotenv
+FNOS_HTTP_PORT=12345
+ADMIN_USER=test
+ADMIN_PASS=testadmin
+```
+
+账号只在空数据目录首次启动时创建。生产环境应立即替换示例密码；后续升级会复用现有数据库、环境变量、挂载和端口映射，不会重置账号。
 
 ### 方式二：`docker run`（host 网络）
 
@@ -58,14 +72,17 @@ curl -L -o server.yaml https://raw.githubusercontent.com/liyan-lucky/rustdesk-ap
 docker run -d \
   --name rustdesk-api-server-pro \
   --restart unless-stopped \
-  --network host \
+  -p "${FNOS_HTTP_PORT:-12345}:12345" \
   --label "name=RustDesk API Server Pro" \
   --label "desc=RustDesk API 增强服务端：管理后台前端、后端 API、第三方登录、SQLite 数据持久化" \
   --label "ports=12345/tcp" \
-  -e ADMIN_USER=admin \
-  -e ADMIN_PASS='ChangeMe123!' \
+  -e ADMIN_USER=test \
+  -e ADMIN_PASS='testadmin' \
+  -e PORT=12345 \
+  -e RUSTDESK_HBBS_DIR=/root \
   -v $(pwd)/server.yaml:/app/server.yaml \
   -v $(pwd)/data:/app/data \
+  -v /vol1/docker/rustdesk/hbbs:/root:ro \
   ghcr.io/liyan-lucky/rustdesk-api-server-pro:latest
 
 docker logs -f rustdesk-api-server-pro
@@ -115,6 +132,14 @@ docker exec -it rustdesk-api-server-pro sh
 docker exec -it rustdesk-api-server-pro rustdesk-api-server-pro sync
 ```
 
+镜像内附带可回滚更新脚本。在 Docker 主机执行以下命令即可提取并运行；脚本会从旧容器读取用户名、密码、应用端口和飞牛端口映射：
+
+```bash
+docker cp rustdesk-api-server-pro:/usr/local/share/rustdesk-api-server-pro/update-container.sh ./update-rustdesk-api.sh
+chmod 700 ./update-rustdesk-api.sh
+./update-rustdesk-api.sh
+```
+
 ## 1. 容器镜像与启动行为
 
 ### 版本系统
@@ -157,10 +182,10 @@ docker exec -it rustdesk-api-server-pro rustdesk-api-server-pro sync
 Dockerfile 中的默认项：
 
 - 镜像内工作目录：`/app`
-- 默认声明端口：`EXPOSE 8080`
+- 默认声明端口：`EXPOSE 12345`
 - 启动命令：`sh /app/start.sh`
 
-注意：`EXPOSE 8080` 只是镜像声明，不代表程序一定监听 8080。程序实际监听端口由 `server.yaml` 的 `httpConfig.port` 决定。
+注意：`EXPOSE 12345` 只是镜像声明，程序实际监听端口仍由 `PORT` 或 `server.yaml` 的 `httpConfig.port` 决定。
 
 示例 `backend/server.yaml` 常见默认值：
 

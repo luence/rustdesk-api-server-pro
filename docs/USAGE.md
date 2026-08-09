@@ -150,7 +150,7 @@ pnpm build
 - 管理员新建联系人、标签或地址簿时必须选择归属用户；选择用户后只显示该用户的地址簿。普通用户只能新建和维护自己的数据，且不能删除管理员为其创建的地址簿
 - “关于与更新”页面可检查在线版本；发布到其他站点时可修改检查地址并保存在当前浏览器
 - 普通用户在设备管理中只能查看自己的同步设备，在日志审计中只能查看自己的登录状态，在服务器配置中只能查看和复制连接参数
-- 关于页面的更新检查地址可修改；管理员可编辑更新命令模板，默认模板为 `IMAGE=ghcr.io/liyan-lucky/rustdesk-api-server-pro:{version} EXPECTED_VERSION={version} /opt/rustdesk-api-server-pro/update-rustdesk-api.sh`，复制时会用最新版本替换 `{version}`
+- 关于页面的更新检查地址可修改；管理员可编辑更新命令模板，默认从当前目录执行 `./update-rustdesk-api.sh`。镜像内附带脚本，可先运行 `docker cp rustdesk-api-server-pro:/usr/local/share/rustdesk-api-server-pro/update-container.sh ./update-rustdesk-api.sh && chmod 700 ./update-rustdesk-api.sh`，再复制页面生成的更新命令。
 
 ### 6.4 兼容端点验证（按需）
 
