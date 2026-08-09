@@ -39,8 +39,7 @@
 
 ## 辅助
 
-22. `NEXT_CONVERSATION_PROMPT.md`：将当前任务转交到新对话时可直接粘贴的续接提示词。
-23. `compat/rustdesk-current.json`：RustDesk 客户端兼容清单。
+22. `compat/rustdesk-current.json`：RustDesk 客户端兼容清单。
 
 ## 当前主事实
 
@@ -50,8 +49,8 @@
 - 当前推荐部署方式：单容器一体化服务。
 - 当前默认端口：`12345/tcp`，以 `server.yaml` 的 `httpConfig.port` 为准。
 - 当前镜像内置管理后台前端，旧 `rustdesk-web` / nginx 前端容器不再是必需组件。
-- 当前版本：`v1.2.29`（由 `VERSION` 文件控制）。
-- 当前第三方登录统一使用 `oauth.providers`；GitHub 主流程、安全回调、Secret 掩码提示已实现。测试设备仍存在 `github.com:443` 出站超时；微信/QQ 尚属计划。详见 [OAUTH_PROVIDERS.md](./OAUTH_PROVIDERS.md)。
+- 当前版本以根目录 `VERSION` 为准，不在索引中复制易过期的版本号。
+- 当前第三方登录统一使用 `oauth.providers`；Provider 的协议适配、账户绑定及客户端/Web 回调边界详见 [OAUTH_PROVIDERS.md](./OAUTH_PROVIDERS.md) 和 [CURRENT_STATUS.md](./CURRENT_STATUS.md)。
 - 当前通讯录交互统一为账户级全量列表、地址簿名称列和表头筛选；地址簿/联系人/标签及邮件模板新增型页面提供 CSV 导入导出。
 - 地址簿归属由后端强制校验：管理员可代用户创建，普通用户只能自建且不能删除管理员代建项。
 - "关于与更新"页面的在线版本检查地址允许按发布站点修改，配置仅保存在浏览器。

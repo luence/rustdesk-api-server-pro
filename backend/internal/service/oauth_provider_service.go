@@ -684,19 +684,19 @@ func generateAppleClientSecretJWT(provider config.OAuthProviderConfig) (string, 
 	keyID := strings.TrimSpace(provider.KeyID)
 	privateKeyPEM := strings.TrimSpace(provider.PrivateKey)
 	if teamID == "" || keyID == "" || privateKeyPEM == "" {
-		return "", fmt.Errorf("apple: teamId, keyId and privateKey are required")
+		return "", errcode.New(errcode.ERR2035.Code, errcode.ERR2035.Message)
 	}
 	block, _ := pem.Decode([]byte(privateKeyPEM))
 	if block == nil {
-		return "", fmt.Errorf("apple: failed to decode PEM private key")
+		return "", errcode.New(errcode.ERR2035.Code, errcode.ERR2035.Message)
 	}
 	key, keyErr := x509.ParsePKCS8PrivateKey(block.Bytes)
 	if keyErr != nil {
-		return "", fmt.Errorf("apple: failed to parse private key: %w", keyErr)
+		return "", errcode.Errorf(errcode.ERR2035.Code, errcode.ERR2035.Message+": %v", keyErr)
 	}
 	ecKey, ok := key.(*ecdsa.PrivateKey)
 	if !ok {
-		return "", fmt.Errorf("apple: private key must be ECDSA (P-256)")
+		return "", errcode.New(errcode.ERR2035.Code, errcode.ERR2035.Message)
 	}
 	now := time.Now()
 	token := jwt.NewWithClaims(jwt.SigningMethodES256, jwt.MapClaims{
@@ -709,7 +709,7 @@ func generateAppleClientSecretJWT(provider config.OAuthProviderConfig) (string, 
 	token.Header["kid"] = keyID
 	signed, signErr := token.SignedString(ecKey)
 	if signErr != nil {
-		return "", fmt.Errorf("apple: failed to sign JWT: %w", signErr)
+		return "", errcode.Errorf(errcode.ERR2035.Code, errcode.ERR2035.Message+": %v", signErr)
 	}
 	return signed, nil
 }

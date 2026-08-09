@@ -74,6 +74,7 @@ func extractErrCode(message string) string {
 }
 
 func (c *basicController) fail(err error) mvc.Result {
+	err = errcode.Ensure(err)
 	user := c.GetUser()
 	userId := 0
 	userName := ""
@@ -97,6 +98,7 @@ func (c *basicController) fail(err error) mvc.Result {
 }
 
 func (c *basicController) failMsg(msg string) mvc.Result {
+	msg = errcode.EnsureMessage(msg)
 	user := c.GetUser()
 	userId := 0
 	userName := ""

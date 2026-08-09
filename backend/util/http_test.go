@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -60,7 +61,8 @@ func TestDownloadFileUsesSafePermissionsAndTruncatesOldFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0644 {
+	// Windows 不实现 Unix 权限位；内容替换仍在所有平台验证。
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0644 {
 		t.Fatalf("unexpected file mode: got %o want 0644", info.Mode().Perm())
 	}
 }

@@ -138,11 +138,13 @@ watch(visible, () => {
 
 <style scoped>
 .n-card {
-  width: 800px;
+  width: min(800px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
 }
 .n-card-mobile {
-  width: 100vw;
-  max-height: 100vh;
+  width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
   overflow-y: auto;
 }
 </style>

@@ -54,7 +54,6 @@
 | `LEGAL_COMPLIANCE.md` | 合规指南 | 合规要求变更时 |
 | `CLEANUP_HISTORY.md` | 清理历史 | 每次清理后 |
 | `V3_QUALITY.md` | 前端质量门禁 | 质量标准变更时 |
-| `NEXT_CONVERSATION_PROMPT.md` | 续接提示词 | 每次开发后 |
 | `compat/rustdesk-current.json` | 兼容清单 | 版本变更时 |
 
 ### 四、子项目文档

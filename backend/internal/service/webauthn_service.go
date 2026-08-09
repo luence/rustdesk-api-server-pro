@@ -3,7 +3,6 @@ package service
 import (
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"io"
 	"strconv"
 	"strings"
@@ -383,7 +382,7 @@ func ParseCredentialRequestBody(r io.Reader) (*protocol.ParsedCredentialAssertio
 // UpdateConfig 动态更新 WebAuthn 配置（RPID/RPOrigins 从请求推导）
 func (s *WebauthnService) UpdateConfig(rpID string, origins []string) error {
 	if s.cfg == nil {
-		return fmt.Errorf("config is nil")
+		return errcode.New(errcode.ERR3102.Code, errcode.ERR3102.Message)
 	}
 	if s.cfg.WebAuthn == nil {
 		s.cfg.WebAuthn = &config.WebAuthnConfig{}
@@ -406,7 +405,7 @@ func (s *WebauthnService) UpdateConfig(rpID string, origins []string) error {
 	}
 	w, err := webauthn.New(wconfig)
 	if err != nil {
-		return fmt.Errorf("webauthn init failed: %w", err)
+		return errcode.Errorf(errcode.ERR3102.Code, errcode.ERR3102.Message+": %v", err)
 	}
 	s.wauthn = w
 	return nil

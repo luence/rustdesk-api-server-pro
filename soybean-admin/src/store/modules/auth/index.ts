@@ -106,7 +106,13 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
       localStg.set('isAdmin', loginToken.isAdmin);
     }
 
-    const pass = await getUserInfo();
+    let pass = false;
+    for (let attempt = 0; attempt < 3 && !pass; attempt += 1) {
+      pass = await getUserInfo();
+      if (!pass && attempt < 2) {
+        await new Promise(resolve => window.setTimeout(resolve, 250 * (attempt + 1)));
+      }
+    }
 
     if (pass) {
       token.value = loginToken.token;
@@ -120,38 +126,44 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
 
   async function loginByOidcTicket(ticket: string, redirect = true) {
     startLoading();
-    const { data, error } = await fetchOidcTicketToken(ticket);
-    if (!error && data?.token) {
-      const pass = await applyTokenAndBootstrap(data);
-      if (pass) {
-        await routeStore.initAuthRoute();
-        if (redirect) {
-          await redirectFromLogin();
+    try {
+      const { data, error } = await fetchOidcTicketToken(ticket);
+      if (!error && data?.token) {
+        const pass = await applyTokenAndBootstrap(data);
+        if (pass) {
+          await routeStore.initAuthRoute();
+          if (redirect) {
+            await redirectFromLogin();
+          }
+          return true;
         }
-      } else {
-        resetStore();
       }
+      await resetStore();
+      return false;
+    } finally {
+      endLoading();
     }
-    endLoading();
-    return error;
   }
 
   async function loginByOAuthTicket(ticket: string, redirect = true) {
     startLoading();
-    const { data, error } = await fetchOAuthTicketToken(ticket);
-    if (!error && data?.token) {
-      const pass = await applyTokenAndBootstrap(data);
-      if (pass) {
-        await routeStore.initAuthRoute();
-        if (redirect) {
-          await redirectFromLogin();
+    try {
+      const { data, error } = await fetchOAuthTicketToken(ticket);
+      if (!error && data?.token) {
+        const pass = await applyTokenAndBootstrap(data);
+        if (pass) {
+          await routeStore.initAuthRoute();
+          if (redirect) {
+            await redirectFromLogin();
+          }
+          return true;
         }
-      } else {
-        resetStore();
       }
+      await resetStore();
+      return false;
+    } finally {
+      endLoading();
     }
-    endLoading();
-    return error;
   }
 
   /**

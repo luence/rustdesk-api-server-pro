@@ -33,10 +33,12 @@ export function setupAppVersionNotification() {
   let isShow = false;
 
   const checkVersion = async () => {
-    if (isShow || import.meta.env.DEV) return;
+    if (isShow || import.meta.env.DEV || isLoginPage()) return;
     const serverVersion = await getServerVersion();
     const currentVersion = getVersionTag().replace(/^v/, '');
-    if (!serverVersion || !isVersionHigher(serverVersion, currentVersion)) return;
+    if (isLoginPage() || !isSemanticVersion(currentVersion) || !serverVersion || !isVersionHigher(serverVersion, currentVersion)) {
+      return;
+    }
 
     const dismissKey = `${currentVersion}|${serverVersion}`;
     if (getDismissedVersion() === dismissKey) return;
@@ -46,7 +48,7 @@ export function setupAppVersionNotification() {
       title: `${$t('system.updateTitle')} (${currentVersion} → ${serverVersion})`,
       content: `${appendVersion($t('system.updateContent'))} Server: ${serverVersion}`,
       action() {
-        return h('div', { style: { display: 'flex', justifyContent: 'end', gap: '12px', width: '325px' } }, [
+        return h('div', { style: { display: 'flex', flexWrap: 'wrap', justifyContent: 'end', gap: '12px' } }, [
           h(
             NButton,
             {
@@ -82,6 +84,14 @@ export function setupAppVersionNotification() {
   });
   window.setTimeout(() => void checkVersion(), 10_000);
   window.setInterval(() => void checkVersion(), 5 * 60 * 1000);
+}
+
+function isLoginPage(): boolean {
+  return window.location.pathname.startsWith('/login') || window.location.hash.startsWith('#/login');
+}
+
+function isSemanticVersion(value: string): boolean {
+  return /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(value);
 }
 
 function isVersionHigher(a: string, b: string): boolean {

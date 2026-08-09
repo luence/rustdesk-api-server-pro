@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import type { Component } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { getPaletteColorByNumber, mixColor } from '@sa/color';
@@ -24,6 +24,7 @@ const authStore = useAuthStore();
 const themeStore = useThemeStore();
 const route = useRoute();
 const router = useRouter();
+const ticketProcessing = ref(false);
 
 interface LoginModule {
   label: string;
@@ -50,8 +51,19 @@ const bgColor = computed(() => {
 });
 
 async function consumeOAuthTicket(ticket: string) {
-  await authStore.loginByOAuthTicket(ticket, true);
-  return Boolean(localStg.get('token'));
+  if (ticketProcessing.value) return false;
+  ticketProcessing.value = true;
+  try {
+    return await authStore.loginByOAuthTicket(ticket, false);
+  } finally {
+    ticketProcessing.value = false;
+  }
+}
+
+function safeLoginRedirect(value: unknown) {
+  if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//')) return '/';
+  if (value.startsWith('/#/')) return value.slice(2) || '/';
+  return value;
 }
 
 onMounted(async () => {
@@ -66,6 +78,11 @@ onMounted(async () => {
   const oauthError = mergedQuery.oauth_error;
   if (typeof oauthError === 'string' && oauthError) {
     const messageMap: Record<string, string> = {
+      'ERR-2208': $t('page.login.common.oauthAccountNotBound'),
+      'ERR-2209': $t('page.login.common.oauthProviderUnreachable'),
+      'ERR-2210': $t('page.login.common.oauthStateExpired'),
+      'ERR-2211': $t('page.login.common.oauthAuthFailed'),
+      'ERR-2212': $t('page.login.common.oauthAuthFailed'),
       oauth_account_not_bound: $t('page.login.common.oauthAccountNotBound'),
       oauth_provider_unreachable: $t('page.login.common.oauthProviderUnreachable'),
       oauth_state_expired: $t('page.login.common.oauthStateExpired'),
@@ -86,11 +103,14 @@ onMounted(async () => {
       await router.replace({ path: route.path, query: q, hash: route.hash });
       return;
     }
+    const target = safeLoginRedirect(mergedQuery.redirect);
     const consumed = await consumeOAuthTicket(oauthTicket);
     delete q.oauth_ticket;
     delete q.oauth_provider;
     delete q.oauth_error;
-    if (!consumed) {
+    if (consumed) {
+      await router.replace(target);
+    } else {
       window.$message?.error($t('api.RequestError'));
       await router.replace({ path: route.path, query: q, hash: route.hash });
     }
@@ -99,10 +119,16 @@ onMounted(async () => {
 
   const ticket = mergedQuery.oidc_ticket;
   if (typeof ticket === 'string' && ticket) {
-    await authStore.loginByOidcTicket(ticket, true);
+    const target = safeLoginRedirect(mergedQuery.redirect);
+    const consumed = await authStore.loginByOidcTicket(ticket, false);
     delete q.oidc_ticket;
     delete q.oidc_error;
-    await router.replace({ path: route.path, query: q, hash: route.hash });
+    if (consumed) {
+      await router.replace(target);
+    } else {
+      window.$message?.error($t('api.RequestError'));
+      await router.replace({ path: route.path, query: q, hash: route.hash });
+    }
     return;
   }
 

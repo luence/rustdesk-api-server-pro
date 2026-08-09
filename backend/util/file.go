@@ -85,7 +85,8 @@ func safeZipDestination(dst, name string) (string, error) {
 	if strings.TrimSpace(name) == "" {
 		return "", errcode.New(errcode.ERRC006.Code, errcode.ERRC006.Message)
 	}
-	if filepath.IsAbs(name) {
+	// ZIP 条目统一使用斜杠，但恶意归档可能混用平台分隔符或盘符。
+	if filepath.IsAbs(name) || filepath.VolumeName(name) != "" || strings.HasPrefix(name, "/") || strings.HasPrefix(name, "\\") {
 		return "", errcode.Errorf(errcode.ERRC008.Code, errcode.ERRC008.Message, name)
 	}
 

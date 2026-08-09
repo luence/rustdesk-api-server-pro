@@ -3,6 +3,7 @@ package errcode
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 )
 
@@ -39,6 +40,23 @@ func New(code, message string) error {
 
 func Errorf(code, format string, args ...interface{}) error {
 	return fmt.Errorf(code+": "+format, args...)
+}
+
+// Ensure 为所有对外错误补齐统一错误码，同时保留已经编码的错误。
+func Ensure(err error) error {
+	if err == nil {
+		return New(ERRB010.Code, ERRB010.Message)
+	}
+	message := strings.TrimSpace(err.Error())
+	if strings.HasPrefix(message, "ERR-") {
+		return err
+	}
+	return Errorf(ERRB010.Code, ERRB010.Message+": %s", message)
+}
+
+// EnsureMessage 为对外错误消息补齐统一错误码。
+func EnsureMessage(message string) string {
+	return Ensure(errors.New(strings.TrimSpace(message))).Error()
 }
 
 func List() []Entry {

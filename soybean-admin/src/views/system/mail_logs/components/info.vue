@@ -74,7 +74,9 @@ watch(visible, () => {
 
 <style scoped>
 .n-card {
-  width: 800px;
+  width: min(800px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
 }
 .contents {
   border: 1px solid #ccc;

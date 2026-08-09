@@ -53,6 +53,7 @@ func (c *basicController) Success(data interface{}, message string) mvc.Result {
 }
 
 func (c *basicController) Error(data interface{}, message string) mvc.Result {
+	message = errcode.EnsureMessage(message)
 	user := c.GetUser()
 	userId := 0
 	userName := ""

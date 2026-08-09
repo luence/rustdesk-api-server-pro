@@ -36,13 +36,16 @@ OAuth provider 只能注册一个回调URL，但 admin 和客户端需要不同�
 
 1. **客户端发起登录**: 调用 `BuildClientAuthURL` 生成授权URL，state 中包含 `PollToken`，返回授权URL和 pollToken 给客户端
 2. **Admin 发起登录**: 调用 `BuildAdminAuthURL` 生成授权URL，state 中不包含 `PollToken`，返回授权URL给前端
-3. **统一回调处理**: `ConsumeUnifiedCallback` 处理回调，检查 state 中的 `PollToken`。如果有则返回HTML页面包含 `rustdesk://oauth/callback?poll_token=xxx`；如果没有则返回 ticket 和重定向URL
+3. **统一回调处理**：`ConsumeUnifiedCallback` 处理回调并检查 state 中的 `PollToken`。客户端回调将认证结果写入轮询存储；Web 后台回调返回一次性 ticket 和重定向 URL。
 
 ### 浏览器安全提示
+
+浏览器协议唤醒不是认证结果的传输通道。客户端必须通过官方轮询接口取得结果；成功页只可选择使用 `rustdesk://config/` 聚焦客户端。浏览器可能要求用户确认外部协议，也可能禁止普通标签页自行关闭，因此必须提供手动返回和关闭提示。
 当用户点击 `rustdesk://...` 链接时，浏览器会显示安全提示（"此网站想打开 RustDesk"）。这是浏览器的正常行为，提示框显示的是当前页面域名，而不是目标URL scheme。
 
 ### 调试信息
-在 `renderOAuthCallbackPage` 中添加了HTML注释：`<!-- DEBUG: schemeURL=rustdesk://oauth/callback?poll_token=xxx pollToken=xxx -->`，可以通过查看网页源代码确认 pollToken 是否正确。
+
+不得在回调 HTML、日志或页面源代码中输出 poll token、ticket 或认证结果。排障应使用脱敏的关联 ID 和服务端状态日志。
 
 ## AdminOrUserAuth 中间件
 

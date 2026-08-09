@@ -67,7 +67,7 @@ async function handleSubmit() {
       const { data, error } = await fetchConfirmClientWebauth(clientPollToken.value, model);
       if (!error && data?.ok) {
         clientWebauthCompleted.value = true;
-        window.setTimeout(launchRustDesk, 150);
+        window.setTimeout(closeClientWebauthPage, 1200);
         return;
       }
       if (error?.response?.data?.message?.includes('CaptchaError')) handleCaptcha();
@@ -150,7 +150,8 @@ onMounted(() => {
   <NResult v-if="clientWebauthCompleted" status="success" :title="$t('page.login.common.loginSuccess')">
     <template #footer>
       <NSpace vertical :size="12">
-        <p class="text-center text-14px text-gray-500">认证信息已发送，请返回 RustDesk 客户端继续使用。</p>
+        <p class="text-center text-14px text-gray-500">认证信息已发送，RustDesk 客户端会自动完成登录。</p>
+        <p class="text-center text-12px text-gray-400">页面将尝试自动关闭；若浏览器阻止关闭，可直接关闭此标签页。</p>
         <NButton type="primary" round block @click="launchRustDesk">
           <template #icon><SvgIcon icon="mdi:remote-desktop" /></template>
           返回 RustDesk

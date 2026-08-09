@@ -276,18 +276,16 @@ func (c *AuthController) renderOAuthCallbackPage(success bool, errorCode, pollTo
 	var title, body string
 	var schemeURL string
 	if success && pollToken != "" {
-		schemeURL = "rustdesk://oauth/callback?poll_token=" + pollToken
+		schemeURL = "rustdesk://config/"
 	}
 	if success {
 		title = "第三方登录成功"
 		if schemeURL != "" {
 			body = "<p class=\"ok\">已成功登录！</p>"
 			body += "<a href=\"" + schemeURL + "\" class=\"launch-btn\" id=\"launch-btn\">返回 RustDesk 客户端</a>"
-			body += "<p class=\"tip\">请点击上方按钮返回客户端<br>如按钮无效，请手动切回客户端</p>"
-			body += "<!-- DEBUG: schemeURL=" + schemeURL + " pollToken=" + pollToken + " -->"
+			body += "<p class=\"tip\">客户端正在自动获取认证结果。页面将尝试自动关闭；若浏览器阻止关闭，可直接关闭此标签页。</p>"
 		} else {
 			body = "<p class=\"ok\">已成功登录，请回到客户端继续。</p>"
-			body += "<!-- DEBUG: pollToken is empty -->"
 		}
 	} else {
 		title = "第三方登录失败"
@@ -316,6 +314,11 @@ h1{font-size:20px;margin:0 0 16px}
 <h1>` + title + `</h1>
 ` + body + `
 </div>
+<script>
+if (` + strconv.FormatBool(success) + `) {
+  window.setTimeout(function () { window.close(); }, 1200);
+}
+</script>
 </body>
 </html>`
 	c.Ctx.ContentType("text/html; charset=utf-8")
@@ -325,31 +328,31 @@ h1{font-size:20px;margin:0 0 16px}
 
 func oauthCallbackErrorCode(err error) string {
 	if err == nil {
-		return errcode.ERR2212.Message
+		return errcode.ERR2212.Code
 	}
 	msg := err.Error()
 	if strings.HasPrefix(msg, "ERR-") {
 		code := strings.SplitN(msg, ":", 2)[0]
 		switch code {
 		case errcode.ERR2023.Code, errcode.ERR2022.Code:
-			return errcode.ERR2208.Message
+			return errcode.ERR2208.Code
 		case errcode.ERR2004.Code, errcode.ERR2029.Code:
-			return errcode.ERR2210.Message
+			return errcode.ERR2210.Code
 		case errcode.ERR2030.Code, errcode.ERR2031.Code, errcode.ERR2034.Code:
-			return errcode.ERR2209.Message
+			return errcode.ERR2209.Code
 		default:
-			return errcode.ERR2212.Message
+			return errcode.ERR2212.Code
 		}
 	}
 	switch {
 	case strings.Contains(msg, "NoBindableOauthAccount"), strings.Contains(msg, "BoundAdminUserNotAvailable"):
-		return errcode.ERR2208.Message
+		return errcode.ERR2208.Code
 	case strings.Contains(msg, "timeout"), strings.Contains(msg, "deadline exceeded"), strings.Contains(msg, "connection refused"):
-		return errcode.ERR2209.Message
+		return errcode.ERR2209.Code
 	case strings.Contains(msg, "StateInvalidOrExpired"), strings.Contains(msg, "StateExpired"):
-		return errcode.ERR2210.Message
+		return errcode.ERR2210.Code
 	default:
-		return errcode.ERR2212.Message
+		return errcode.ERR2212.Code
 	}
 }
 

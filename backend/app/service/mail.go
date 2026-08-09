@@ -1,7 +1,6 @@
 package service
 
 import (
-	"fmt"
 	"rustdesk-api-server-pro/app/model"
 	"rustdesk-api-server-pro/config"
 	"rustdesk-api-server-pro/db"
@@ -56,7 +55,7 @@ func (service *MailService) GetMailTemplateByType(t int) (*model.MailTemplate, e
 		return nil, err
 	}
 	if !has {
-		return nil, fmt.Errorf("mail template not found for type %d", t)
+		return nil, errcode.Errorf(errcode.ERR8005.Code, errcode.ERR8005.Message+": type=%d", t)
 	}
 	return &tpl, nil
 }
@@ -84,7 +83,7 @@ func (service *MailService) Send(userId, tplId int, to, uuid string, vars map[st
 		if err != nil {
 			return err
 		}
-		return fmt.Errorf("%s", errMsg)
+		return errcode.Errorf(errcode.ERR8006.Code, errcode.ERR8006.Message+": %s", errMsg)
 	}
 
 	body := template.Contents
