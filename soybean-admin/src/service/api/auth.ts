@@ -78,6 +78,20 @@ export function fetchOAuthTicketToken(ticket: string) {
   });
 }
 
+export function fetchConfirmOAuthBinding(ticket: string, model: Api.Form.LoginForm) {
+  return request<{ ticket: string; client: boolean; redirect: string }>({
+    url: '/auth/oauth/bind',
+    method: 'post',
+    data: {
+      ticket,
+      username: model.username,
+      password: model.password,
+      code: model.code,
+      captchaId: model.captchaId
+    }
+  });
+}
+
 /** Get user info */
 export function fetchGetUserInfo() {
   return request<Api.Auth.UserInfo>({ url: '/userinfo' });

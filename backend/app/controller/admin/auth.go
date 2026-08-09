@@ -28,6 +28,7 @@ func (c *AuthController) BeforeActivation(b mvc.BeforeActivation) {
 	b.Handle("GET", "/auth/oauth/providers", "GetAuthOauthProviders")
 	b.Handle("GET", "/auth/oauth/url", "GetAuthOauthUrl")
 	b.Handle("GET", "/auth/oauth/token", "GetAuthOauthToken")
+	b.Handle("POST", "/auth/oauth/bind", "PostAuthOauthBind")
 	b.Handle("GET", "/auth/oauth/{provider:string}/callback", "HandleOauthCallback")
 	b.Handle("POST", "/auth/client-webauth/confirm", "PostClientWebauthConfirm")
 	b.Handle("GET", "/auth/login-config", "GetAuthLoginConfig")
@@ -36,6 +37,34 @@ func (c *AuthController) BeforeActivation(b mvc.BeforeActivation) {
 	b.Handle("GET", "/auth/webauthn/enabled", "GetWebauthnEnabled")
 	b.Handle("GET", "/auth/webauthn/auth-page", "GetWebauthnAuthPage")
 	b.Handle("GET", "/auth/webauthn/register-page", "GetWebauthnRegisterPage")
+}
+
+type oauthBindForm struct {
+	Ticket    string `json:"ticket"`
+	Username  string `json:"username"`
+	Password  string `json:"password"`
+	CaptchaId string `json:"captchaId"`
+	Code      string `json:"code"`
+}
+
+// PostAuthOauthBind 验证目标账户密码并完成首次 OAuth 身份绑定。
+func (c *AuthController) PostAuthOauthBind() mvc.Result {
+	var form oauthBindForm
+	if err := c.Ctx.ReadJSON(&form); err != nil {
+		return c.dbError(err)
+	}
+	if !c.Cfg.DisableLoginCaptcha && !captcha.VerifyCode(form.CaptchaId, form.Code) {
+		c.recordAdminSecurityAudit("oauth_account_bind", false, "CaptchaError")
+		return c.Error(nil, errcode.New(errcode.ERR1001.Code, errcode.ERR1001.Message).Error())
+	}
+	service := v2service.NewOAuthProviderService(config.GetServerConfig(), c.Db)
+	ticket, clientFlow, redirectTo, err := service.ConfirmOAuthBinding(form.Ticket, form.Username, form.Password)
+	if err != nil {
+		c.recordAdminSecurityAudit("oauth_account_bind", false, err.Error())
+		return c.Error(nil, err.Error())
+	}
+	c.recordAdminSecurityAudit("oauth_account_bind", true, form.Username)
+	return c.Success(iris.Map{"ticket": ticket, "client": clientFlow, "redirect": redirectTo}, "ok")
 }
 
 type clientWebauthConfirmForm struct {
@@ -253,6 +282,12 @@ func (c *AuthController) HandleOauthCallback() mvc.Result {
 
 	pollToken, ticket, redirectTo, err := service.ConsumeUnifiedCallback(provider, code, state)
 	if err != nil {
+		if ticket != "" && strings.HasPrefix(err.Error(), errcode.ERR2023.Code) {
+			target := withQuery(adminLoginCallbackTarget(redirectTo), "oauth_provider", provider)
+			target = withQuery(target, "oauth_bind_ticket", ticket)
+			c.Ctx.Redirect(target, iris.StatusFound)
+			return mvc.Response{}
+		}
 		if pollToken != "" {
 			c.recordAdminSecurityAudit("client_oauth_callback", false, provider+": "+err.Error())
 			return c.renderOAuthCallbackPage(false, oauthCallbackErrorCode(err), pollToken)

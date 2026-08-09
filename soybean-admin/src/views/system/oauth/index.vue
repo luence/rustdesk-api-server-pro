@@ -242,7 +242,6 @@ const providerColumns = [
   { key: 'displayName', title: $t('page.oauth.displayName') },
   { key: 'name', title: $t('page.oauth.providerName') },
   { key: 'clientId', title: $t('page.oauth.clientId'), ellipsis: { tooltip: true } },
-  { key: 'accountRole', title: $t('page.oauth.accountRole') },
   {
     key: 'enabled',
     title: $t('dataMap.token.status'),
@@ -285,7 +284,7 @@ const providerColumns = [
 ];
 const columns = [
   { key: 'id', title: 'ID' },
-  { key: 'user_id', title: $t('dataMap.ab.user_id') },
+  { key: 'username', title: $t('dataMap.user.username') },
   { key: 'provider', title: $t('dataMap.oauth.provider') },
   { key: 'subject', title: $t('dataMap.oauth.subject') },
   { key: 'email', title: $t('dataMap.oauth.email') },
@@ -458,23 +457,11 @@ onMounted(() => {
           </NButton>
         </NFormItem>
         <NFormItem :label="$t('page.oauth.scopes')"><NInput v-model:value="form.scopesText" /></NFormItem>
-        <NFormItem :label="$t('page.oauth.accountRole')">
-          <NSelect
-            v-model:value="form.accountRole"
-            :options="[
-              { label: $t('page.oauth.adminRole'), value: 'admin' },
-              { label: $t('page.oauth.userRole'), value: 'user' }
-            ]"
-          />
-        </NFormItem>
         <NFormItem v-if="form.type !== 'qq'" :label="$t('page.oauth.allowedDomains')">
           <NInput v-model:value="form.allowedDomainsText" :placeholder="$t('page.oauth.listPlaceholder')" />
         </NFormItem>
         <NFormItem v-if="form.type !== 'qq'" :label="$t('page.oauth.bindByEmail')">
           <NSwitch v-model:value="form.bindByEmail" />
-        </NFormItem>
-        <NFormItem :label="$t('page.oauth.autoCreateAdmin')">
-          <NSwitch v-model:value="form.autoCreateAdmin" />
         </NFormItem>
         <NFormItem :label="$t('page.oauth.autoCreateUser')"><NSwitch v-model:value="form.autoCreateUser" /></NFormItem>
         <NFormItem :label="$t('dataMap.token.status')"><NSwitch v-model:value="form.enabled" /></NFormItem>

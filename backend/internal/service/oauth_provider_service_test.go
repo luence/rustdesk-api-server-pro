@@ -8,8 +8,53 @@ import (
 	"rustdesk-api-server-pro/app/model"
 	"rustdesk-api-server-pro/config"
 	"rustdesk-api-server-pro/db"
+	"rustdesk-api-server-pro/util"
 	"testing"
+	"time"
 )
+
+func TestOAuthProviderService_ConfirmOAuthBindingRequiresTargetPassword(t *testing.T) {
+	engine, err := db.NewEngine(&config.DbConfig{Driver: "sqlite", Dsn: ":memory:", TimeZone: "Asia/Shanghai", ShowSql: false})
+	if err != nil {
+		t.Fatalf("new engine: %v", err)
+	}
+	if err = engine.Sync(new(model.User), new(model.OAuthAccount), new(model.OAuthLoginSession)); err != nil {
+		t.Fatalf("sync: %v", err)
+	}
+	passwordHash, err := util.Password("correct-password")
+	if err != nil {
+		t.Fatalf("hash password: %v", err)
+	}
+	user := &model.User{Username: "target-user", Password: passwordHash, Status: 1, IsAdmin: false}
+	if _, err = engine.Insert(user); err != nil {
+		t.Fatalf("insert user: %v", err)
+	}
+	cfg := &config.ServerConfig{SignKey: "test-sign-key", OAuth: &config.OAuthConfig{Providers: []config.OAuthProviderConfig{{
+		Type: "github", Name: "github", Enabled: true, AccountRole: "user", ClientID: "client-id", ClientSecret: "client-secret",
+	}}}}
+	svc := NewOAuthProviderService(cfg, engine)
+	bindingTicket := "binding-ticket"
+	if err = svc.setBindingTicket(bindingTicket, oauthBindingEntry{
+		Provider: "github", Claims: OAuthUserClaims{Subject: "subject-1", Email: "third@example.com", Name: "Third User"},
+	}, time.Now().Add(time.Minute)); err != nil {
+		t.Fatalf("set binding ticket: %v", err)
+	}
+	if _, _, _, err = svc.ConfirmOAuthBinding(bindingTicket, user.Username, "wrong-password"); err == nil {
+		t.Fatal("wrong target password must reject binding")
+	}
+	loginTicket, clientFlow, _, err := svc.ConfirmOAuthBinding(bindingTicket, user.Username, "correct-password")
+	if err != nil || loginTicket == "" || clientFlow {
+		t.Fatalf("confirm binding: ticket=%q client=%v err=%v", loginTicket, clientFlow, err)
+	}
+	var account model.OAuthAccount
+	has, err := engine.Where("provider = ? and subject = ?", "github", "subject-1").Get(&account)
+	if err != nil || !has || account.UserId != user.Id {
+		t.Fatalf("binding account not persisted: has=%v account=%+v err=%v", has, account, err)
+	}
+	if _, _, _, replayErr := svc.ConfirmOAuthBinding(bindingTicket, user.Username, "correct-password"); replayErr == nil {
+		t.Fatal("binding ticket replay must be rejected")
+	}
+}
 
 func TestOAuthProviderService_ListEnabledProviders(t *testing.T) {
 	cfg := &config.ServerConfig{
@@ -90,6 +135,7 @@ func TestOAuthProviderService_GithubTicketFlow(t *testing.T) {
 					UserinfoEndpoint:      provider.URL + "/user",
 					BindByEmail:           true,
 					AutoCreateAdmin:       true,
+					AutoCreateUser:        true,
 					SuccessRedirect:       "/login",
 					FailureRedirect:       "/login",
 				},
@@ -146,11 +192,11 @@ func TestOAuthProviderService_GithubTicketFlow(t *testing.T) {
 	}
 
 	var users []model.User
-	if err = engine.Where("is_admin = 1").Find(&users); err != nil {
+	if err = engine.Where("is_admin = 0").Find(&users); err != nil {
 		t.Fatalf("query users: %v", err)
 	}
 	if len(users) != 1 {
-		t.Fatalf("expected 1 admin user, got %d", len(users))
+		t.Fatalf("expected 1 ordinary user, got %d", len(users))
 	}
 
 	var accounts []model.OAuthAccount

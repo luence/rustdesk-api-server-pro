@@ -316,10 +316,9 @@ func (cfg *ServerConfig) OAuthProviders() []OAuthProviderConfig {
 				continue
 			}
 			provider.Name = name
-			provider.AccountRole = strings.ToLower(strings.TrimSpace(provider.AccountRole))
-			if provider.AccountRole != "user" {
-				provider.AccountRole = "admin"
-			}
+			// 保留 accountRole 字段用于旧配置解析，新流程统一由绑定目标账户决定角色。
+			provider.AccountRole = "user"
+			provider.AutoCreateAdmin = false
 			providers = append(providers, provider)
 			seen[name] = struct{}{}
 		}

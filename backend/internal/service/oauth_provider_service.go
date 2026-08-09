@@ -97,6 +97,18 @@ type oauthTicketEntry struct {
 	DeviceName string
 }
 
+type oauthBindingEntry struct {
+	Provider   string          `json:"provider"`
+	Claims     OAuthUserClaims `json:"claims"`
+	RedirectTo string          `json:"redirectTo"`
+	PollToken  string          `json:"pollToken"`
+	RustdeskId string          `json:"rustdeskId"`
+	Uuid       string          `json:"uuid"`
+	DeviceOs   string          `json:"deviceOs"`
+	DeviceType string          `json:"deviceType"`
+	DeviceName string          `json:"deviceName"`
+}
+
 type oauthMetadataEntry struct {
 	Value     oauthMetadata
 	ExpiresAt time.Time
@@ -833,20 +845,19 @@ func fillClaimsByOAuthIDToken(idToken, expectedIssuer, expectedAudience string, 
 }
 
 func (s *OAuthProviderService) resolveOAuthUser(provider config.OAuthProviderConfig, claims *OAuthUserClaims) (*model.User, error) {
-	isAdmin := provider.AccountRole != "user"
 	var account model.OAuthAccount
-	has, err := s.db.Where("provider = ? and subject = ? and is_admin = ? and status = 1", provider.Name, claims.Subject, isAdmin).Get(&account)
+	has, err := s.db.Where("provider = ? and subject = ? and status = 1", provider.Name, claims.Subject).Get(&account)
 	if err != nil {
 		return nil, err
 	}
 	if has {
 		var user model.User
-		ok, err := s.db.Where("id = ? and is_admin = ? and status > 0", account.UserId, isAdmin).Get(&user)
+		ok, err := s.db.Where("id = ? and status > 0", account.UserId).Get(&user)
 		if err != nil {
 			return nil, err
 		}
 		if !ok {
-			user, err := s.matchOrCreateOAuthUser(provider, claims, isAdmin)
+			user, err := s.matchOrCreateOAuthUser(provider, claims)
 			if err != nil {
 				return nil, err
 			}
@@ -866,7 +877,7 @@ func (s *OAuthProviderService) resolveOAuthUser(provider config.OAuthProviderCon
 		return &user, nil
 	}
 
-	user, err := s.matchOrCreateOAuthUser(provider, claims, isAdmin)
+	user, err := s.matchOrCreateOAuthUser(provider, claims)
 	if err != nil {
 		return nil, err
 	}
@@ -878,19 +889,19 @@ func (s *OAuthProviderService) resolveOAuthUser(provider config.OAuthProviderCon
 		Email:       claims.Email,
 		Name:        claims.Name,
 		Picture:     claims.Picture,
-		IsAdmin:     isAdmin,
+		IsAdmin:     user.IsAdmin,
 		Status:      1,
 		LastLoginAt: time.Now(),
 	}
 	_, err = s.db.Insert(newAccount)
 	if err != nil {
 		var existing model.OAuthAccount
-		hasExisting, queryErr := s.db.Where("provider = ? and subject = ? and is_admin = ? and status = 1", provider.Name, claims.Subject, isAdmin).Get(&existing)
+		hasExisting, queryErr := s.db.Where("provider = ? and subject = ? and status = 1", provider.Name, claims.Subject).Get(&existing)
 		if queryErr != nil || !hasExisting {
 			return nil, err
 		}
 		var existingUser model.User
-		userOk, userErr := s.db.Where("id = ? and is_admin = ? and status > 0", existing.UserId, isAdmin).Get(&existingUser)
+		userOk, userErr := s.db.Where("id = ? and status > 0", existing.UserId).Get(&existingUser)
 		if userErr != nil || !userOk {
 			return nil, err
 		}
@@ -900,10 +911,10 @@ func (s *OAuthProviderService) resolveOAuthUser(provider config.OAuthProviderCon
 	return user, nil
 }
 
-func (s *OAuthProviderService) matchOrCreateOAuthUser(provider config.OAuthProviderConfig, claims *OAuthUserClaims, isAdmin bool) (*model.User, error) {
+func (s *OAuthProviderService) matchOrCreateOAuthUser(provider config.OAuthProviderConfig, claims *OAuthUserClaims) (*model.User, error) {
 	if provider.BindByEmail && claims.Email != "" {
 		var user model.User
-		has, err := s.db.Where("email = ? and is_admin = ? and status > 0", claims.Email, isAdmin).Get(&user)
+		has, err := s.db.Where("email = ? and is_admin = 0 and status > 0", claims.Email).Get(&user)
 		if err != nil {
 			return nil, err
 		}
@@ -912,7 +923,7 @@ func (s *OAuthProviderService) matchOrCreateOAuthUser(provider config.OAuthProvi
 		}
 	}
 
-	if (isAdmin && !provider.AutoCreateAdmin) || (!isAdmin && !provider.AutoCreateUser) {
+	if !provider.AutoCreateUser {
 		return nil, errcode.New(errcode.ERR2023.Code, errcode.ERR2023.Message)
 	}
 
@@ -925,7 +936,7 @@ func (s *OAuthProviderService) matchOrCreateOAuthUser(provider config.OAuthProvi
 	}
 	username := sanitizeOAuthUsername(nameSeed)
 	if username == "" {
-		username = provider.Name + "_admin"
+		username = provider.Name + "_user"
 	}
 	uniqueUsername, err := s.makeUniqueUsername(username)
 	if err != nil {
@@ -950,7 +961,7 @@ func (s *OAuthProviderService) matchOrCreateOAuthUser(provider config.OAuthProvi
 		Note:                "auto-created by oauth:" + provider.Name,
 		LicensedDevices:     0,
 		Status:              1,
-		IsAdmin:             isAdmin,
+		IsAdmin:             false,
 	}
 	_, err = s.db.Insert(user)
 	if err != nil {
@@ -1267,10 +1278,9 @@ func normalizeOAuthProvider(provider config.OAuthProviderConfig) config.OAuthPro
 		provider.Type = "oidc"
 	}
 	provider.Name = strings.TrimSpace(provider.Name)
-	provider.AccountRole = strings.ToLower(strings.TrimSpace(provider.AccountRole))
-	if provider.AccountRole != "user" {
-		provider.AccountRole = "admin"
-	}
+	// 账户角色由已绑定的本地账户决定；自动创建始终为普通用户。
+	provider.AccountRole = "user"
+	provider.AutoCreateAdmin = false
 	if provider.Name == "" {
 		switch provider.Type {
 		case "github":
@@ -1905,6 +1915,21 @@ func (s *OAuthProviderService) ConsumeUnifiedCallback(providerName, code, state 
 
 	user, err := s.resolveOAuthUser(provider, claims)
 	if err != nil {
+		if strings.HasPrefix(err.Error(), errcode.ERR2023.Code) {
+			bindingTicket := randomOAuthToken(24)
+			if bindingTicket == "" {
+				return stored.PollToken, "", stored.RedirectTo, errcode.New(errcode.ERR2006.Code, errcode.ERR2006.Message)
+			}
+			binding := oauthBindingEntry{
+				Provider: provider.Name, Claims: *claims, RedirectTo: stored.RedirectTo, PollToken: stored.PollToken,
+				RustdeskId: stored.RustdeskId, Uuid: stored.Uuid, DeviceOs: stored.DeviceOs,
+				DeviceType: stored.DeviceType, DeviceName: stored.DeviceName,
+			}
+			if saveErr := s.setBindingTicket(bindingTicket, binding, time.Now().Add(10*time.Minute)); saveErr != nil {
+				return stored.PollToken, "", stored.RedirectTo, saveErr
+			}
+			return stored.PollToken, bindingTicket, stored.RedirectTo, err
+		}
 		return stored.PollToken, "", stored.RedirectTo, err
 	}
 
@@ -1916,6 +1941,9 @@ func (s *OAuthProviderService) ConsumeUnifiedCallback(providerName, code, state 
 	ticketTTL := s.ticketTTL(provider)
 
 	if stored.PollToken != "" {
+		if user.IsAdmin {
+			return stored.PollToken, "", stored.RedirectTo, errcode.New(errcode.ERR2203.Code, errcode.ERR2203.Message)
+		}
 		if err = s.setTicket(newTicket, oauthTicketEntry{
 			Provider:   provider.Name,
 			UserID:     user.Id,
@@ -1944,6 +1972,92 @@ func (s *OAuthProviderService) ConsumeUnifiedCallback(providerName, code, state 
 		return "", "", stored.RedirectTo, err
 	}
 	return "", newTicket, stored.RedirectTo, nil
+}
+
+// ConfirmOAuthBinding 使用目标本地账户密码确认首次第三方身份绑定。
+func (s *OAuthProviderService) ConfirmOAuthBinding(bindingTicket, username, password string) (string, bool, string, error) {
+	binding, sessionID, ok := s.getBindingTicket(bindingTicket)
+	if !ok {
+		return "", false, "", errcode.New(errcode.ERR2008.Code, errcode.ERR2008.Message)
+	}
+	provider, ok := s.getProvider(binding.Provider)
+	if !ok || !s.isProviderEnabled(provider) {
+		return "", false, "", errcode.New(errcode.ERR2002.Code, errcode.ERR2002.Message)
+	}
+
+	var user model.User
+	has, err := s.db.Where("username = ? and status > 0", strings.TrimSpace(username)).Get(&user)
+	if err != nil {
+		return "", false, "", err
+	}
+	if !has {
+		return "", false, "", errcode.New(errcode.ERR1002.Code, errcode.ERR1002.Message)
+	}
+	if !util.PasswordVerify(password, user.Password) {
+		return "", false, "", errcode.New(errcode.ERR1003.Code, errcode.ERR1003.Message)
+	}
+	clientFlow := binding.PollToken != ""
+	if clientFlow && user.IsAdmin {
+		return "", false, "", errcode.New(errcode.ERR2203.Code, errcode.ERR2203.Message)
+	}
+
+	updated, err := s.db.ID(sessionID).Where("status = 1 and expires_at > ?", time.Now()).Cols("status").Update(&model.OAuthLoginSession{Status: 0})
+	if err != nil || updated != 1 {
+		return "", false, "", errcode.New(errcode.ERR2008.Code, errcode.ERR2008.Message)
+	}
+
+	account := &model.OAuthAccount{
+		UserId: user.Id, Provider: provider.Name, Subject: binding.Claims.Subject, Email: binding.Claims.Email,
+		Name: binding.Claims.Name, Picture: binding.Claims.Picture, IsAdmin: user.IsAdmin, Status: 1, LastLoginAt: time.Now(),
+	}
+	if _, err = s.db.Insert(account); err != nil {
+		return "", false, "", err
+	}
+
+	loginTicket := randomOAuthToken(24)
+	if loginTicket == "" {
+		return "", false, "", errcode.New(errcode.ERR2006.Code, errcode.ERR2006.Message)
+	}
+	expiresAt := time.Now().Add(s.ticketTTL(provider))
+	if err = s.setTicket(loginTicket, oauthTicketEntry{
+		Provider: provider.Name, UserID: user.Id, IsAdmin: user.IsAdmin, ExpiresAt: expiresAt,
+		RustdeskId: binding.RustdeskId, Uuid: binding.Uuid, DeviceOs: binding.DeviceOs,
+		DeviceType: binding.DeviceType, DeviceName: binding.DeviceName,
+	}); err != nil {
+		return "", false, "", err
+	}
+	if clientFlow {
+		if err = s.setPollEntry(binding.PollToken, loginTicket, expiresAt); err != nil {
+			return "", false, "", err
+		}
+	}
+	return loginTicket, clientFlow, binding.RedirectTo, nil
+}
+
+func (s *OAuthProviderService) setBindingTicket(key string, value oauthBindingEntry, expiresAt time.Time) error {
+	result, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	_, _ = s.db.Where("expires_at < ? or status = 0", time.Now()).Delete(&model.OAuthLoginSession{})
+	_, err = s.db.Insert(&model.OAuthLoginSession{
+		Kind: "bind", KeyHash: util.Sha256Hex(key), Provider: value.Provider,
+		PollToken: value.PollToken, Result: string(result), ExpiresAt: expiresAt, Status: 1,
+	})
+	return err
+}
+
+func (s *OAuthProviderService) getBindingTicket(key string) (oauthBindingEntry, int, bool) {
+	var session model.OAuthLoginSession
+	has, err := s.db.Where("kind = ? and key_hash = ? and status = 1 and expires_at > ?", "bind", util.Sha256Hex(key), time.Now()).Get(&session)
+	if err != nil || !has {
+		return oauthBindingEntry{}, 0, false
+	}
+	var binding oauthBindingEntry
+	if json.Unmarshal([]byte(session.Result), &binding) != nil {
+		return oauthBindingEntry{}, 0, false
+	}
+	return binding, session.Id, true
 }
 
 func (s *OAuthProviderService) setPollEntry(pollToken, ticket string, expiresAt time.Time) error {

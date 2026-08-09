@@ -320,6 +320,7 @@ declare namespace Api {
 
     type OAuthAccount = Common.CommonRecord<{
       user_id: number;
+      username: string;
       provider: string;
       subject: string;
       email: string;

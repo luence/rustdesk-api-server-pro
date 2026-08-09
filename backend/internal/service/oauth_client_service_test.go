@@ -118,11 +118,11 @@ func TestOAuthProviderService_ListClientProviders(t *testing.T) {
 	}
 	svc := NewOAuthProviderService(cfg, nil)
 	providers := svc.ListClientProviders()
-	if len(providers) != 1 {
-		t.Fatalf("expected 1 client provider, got %d", len(providers))
+	if len(providers) != 2 {
+		t.Fatalf("expected 2 enabled client providers, got %d", len(providers))
 	}
-	if providers[0].Name != "github-client" {
-		t.Fatalf("expected github-client, got %s", providers[0].Name)
+	if providers[0].Name != "github-admin" || providers[1].Name != "github-client" {
+		t.Fatalf("unexpected normalized client providers: %+v", providers)
 	}
 	if providers[0].AccountRole != "user" {
 		t.Fatalf("expected accountRole=user, got %s", providers[0].AccountRole)
@@ -279,7 +279,7 @@ func TestOAuthProviderService_ClientPollPending(t *testing.T) {
 	}
 }
 
-func TestOAuthProviderService_ClientRejectsAdminProvider(t *testing.T) {
+func TestOAuthProviderService_ClientNormalizesLegacyAdminProvider(t *testing.T) {
 	provider := newMockGitHubOAuthProvider(t)
 	defer provider.Close()
 
@@ -314,8 +314,8 @@ func TestOAuthProviderService_ClientRejectsAdminProvider(t *testing.T) {
 	if err != nil {
 		t.Fatalf("build should not error for admin provider: %v", err)
 	}
-	if enabled {
-		t.Fatalf("admin provider should not be enabled for client login")
+	if !enabled {
+		t.Fatalf("legacy admin provider should be normalized for unified client login")
 	}
 
 	if _, err := svc.ConsumeClientCallback("github-admin-only", "code", "state"); err == nil {

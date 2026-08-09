@@ -4,7 +4,14 @@ import { useRoute } from 'vue-router';
 import { $t } from '@/locales';
 import { useNaiveForm } from '@/hooks/common/form';
 import { useAuthStore } from '@/store/modules/auth';
-import { fetchCaptcha, fetchConfirmClientWebauth, fetchLoginConfig, fetchOAuthLoginUrl, fetchOAuthProviders } from '@/service/api/auth';
+import {
+  fetchCaptcha,
+  fetchConfirmClientWebauth,
+  fetchConfirmOAuthBinding,
+  fetchLoginConfig,
+  fetchOAuthLoginUrl,
+  fetchOAuthProviders
+} from '@/service/api/auth';
 
 defineOptions({
   name: 'PwdLogin'
@@ -17,11 +24,15 @@ const oauthProviders = ref<Api.Auth.OAuthProvider[]>([]);
 const activeProvider = ref('');
 const clientWebauthCompleted = ref(false);
 const clientWebauthLoading = ref(false);
+const oauthBindingLoading = ref(false);
 const captchaEnabled = ref(true);
 const clientPollToken = computed(() => {
   if (route.name !== 'client-webauth') return '';
   return typeof route.query.poll_token === 'string' ? route.query.poll_token : '';
 });
+const oauthBindingTicket = computed(() =>
+  typeof route.query.oauth_bind_ticket === 'string' ? route.query.oauth_bind_ticket : ''
+);
 
 const model: Api.Form.LoginForm = reactive({
   username: '',
@@ -60,6 +71,27 @@ const rules = computed<Record<keyof Api.Form.LoginForm, App.Global.FormRule[]>>(
 
 async function handleSubmit() {
   await validate();
+  if (oauthBindingTicket.value) {
+    if (oauthBindingLoading.value) return;
+    oauthBindingLoading.value = true;
+    try {
+      const { data, error } = await fetchConfirmOAuthBinding(oauthBindingTicket.value, model);
+      if (!error && data?.client) {
+        clientWebauthCompleted.value = true;
+        window.setTimeout(closeClientWebauthPage, 1200);
+        return;
+      }
+      if (!error && data?.ticket) {
+        const redirect = typeof data.redirect === 'string' && data.redirect.startsWith('/') ? data.redirect : '/';
+        window.location.replace(`/#/login?oauth_ticket=${encodeURIComponent(data.ticket)}&redirect=${encodeURIComponent(redirect)}`);
+        return;
+      }
+      if (error?.response?.data?.message?.includes('CaptchaError')) handleCaptcha();
+    } finally {
+      oauthBindingLoading.value = false;
+    }
+    return;
+  }
   if (clientPollToken.value) {
     if (clientWebauthLoading.value) return;
     clientWebauthLoading.value = true;
@@ -142,7 +174,7 @@ onMounted(() => {
     captchaEnabled.value = data?.captchaEnabled !== false;
     if (captchaEnabled.value) handleCaptcha();
   });
-  if (!clientPollToken.value) loadOAuthProviders();
+  if (!clientPollToken.value && !oauthBindingTicket.value) loadOAuthProviders();
 });
 </script>
 
@@ -161,6 +193,9 @@ onMounted(() => {
     </template>
   </NResult>
   <NForm v-else ref="formRef" :model="model" :rules="rules" size="medium" :show-label="false">
+    <NAlert v-if="oauthBindingTicket" type="info" :show-icon="false" class="mb-16px">
+      这是该第三方身份首次登录。请输入要绑定的本地账户及其密码；验证成功后，后续可直接使用第三方登录。
+    </NAlert>
     <NFormItem path="username">
       <NInput v-model:value="model.username" :placeholder="$t('page.login.common.userNamePlaceholder')" />
     </NFormItem>
@@ -194,13 +229,15 @@ onMounted(() => {
         size="medium"
         round
         block
-        :loading="clientPollToken ? clientWebauthLoading : authStore.loginLoading"
+        :loading="oauthBindingTicket ? oauthBindingLoading : clientPollToken ? clientWebauthLoading : authStore.loginLoading"
         @click="handleSubmit"
       >
-        {{ $t('common.confirm') }}
+        {{ oauthBindingTicket ? '验证并绑定' : $t('common.confirm') }}
       </NButton>
-      <NDivider v-if="oauthProviders.length > 0" class="!mt-0 !mb-0">{{ $t('page.login.common.thirdPartyLogin') }}</NDivider>
-      <div class="grid grid-cols-2 gap-8px">
+      <NDivider v-if="!oauthBindingTicket && oauthProviders.length > 0" class="!mt-0 !mb-0">
+        {{ $t('page.login.common.thirdPartyLogin') }}
+      </NDivider>
+      <div v-if="!oauthBindingTicket" class="grid grid-cols-2 gap-8px">
         <NButton
           v-for="provider in oauthProviders"
           :key="provider.name"

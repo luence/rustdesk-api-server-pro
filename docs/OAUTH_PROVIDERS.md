@@ -84,7 +84,7 @@ oauth:
       failureRedirect: "/#/login"
 ```
 
-默认不自动创建账号。推荐先在系统中创建同邮箱、同角色的账号，再使用 `bindByEmail: true` 完成首次绑定。若配置 `accountRole: user`，只会绑定或创建普通用户；`accountRole: admin` 只会绑定或创建管理员，不能跨角色匹配。
+默认不自动创建账号。首次登录没有匹配身份时，Web 页面会要求输入目标本地账户及其密码，验证成功后保存绑定；以后可直接使用第三方登录。Provider 不再预设本地账户角色，角色由目标账户决定。未指定目标账户且启用 `autoCreateUser` 时只会创建普通用户，禁止自动创建管理员。
 
 ## 安全与生命周期
 
@@ -144,7 +144,7 @@ curl "https://desk.example.com/admin/auth/oauth/url?provider=github"
 
 客户端 OAuth 复用后台 `oauth.providers` 配置，无需额外配置段。Provider 的 `redirectUrl` 若显式配置，应指向统一回调 `/admin/auth/oauth/{provider}/callback`；未配置时由服务端自动推导该统一回调。用于客户端的 Provider 必须设置 `accountRole: user`。
 
-> 注意：`accountRole` 决定第三方身份绑定管理员还是普通用户。客户端第三方登录只接受普通用户 Provider。
+> 注意：旧配置中的 `accountRole` 仅为兼容字段。管理员身份必须通过管理员本人的用户名和密码明确绑定；客户端第三方登录不允许绑定管理员账户。
 
 ## RustDesk 客户端兼容协议（/api/oidc/* + /api/login-options）
 

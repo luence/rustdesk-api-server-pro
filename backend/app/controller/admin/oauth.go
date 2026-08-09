@@ -57,12 +57,18 @@ func (c *OAuthController) HandleListAccounts() mvc.Result {
 	pageSize := c.Ctx.URLParamIntDefault("size", 10)
 
 	query := func() *xorm.Session {
-		return c.Db.Table(&model.OAuthAccount{}).Desc("id")
+		return c.Db.Table(&model.OAuthAccount{}).
+			Join("INNER", &model.User{}, "oauth_account.user_id = user.id").
+			Desc("oauth_account.id")
 	}
 
+	type oauthAccountRow struct {
+		model.OAuthAccount `xorm:"extends"`
+		Username           string `xorm:"user.username"`
+	}
 	pagination := db.NewPagination(currentPage, pageSize)
-	accountList := make([]model.OAuthAccount, 0)
-	if err := pagination.Paginate(query, &model.OAuthAccount{}, &accountList); err != nil {
+	accountList := make([]oauthAccountRow, 0)
+	if err := pagination.Paginate(query, &oauthAccountRow{}, &accountList); err != nil {
 		return c.dbError(err)
 	}
 
@@ -71,6 +77,7 @@ func (c *OAuthController) HandleListAccounts() mvc.Result {
 		list = append(list, iris.Map{
 			"id":            a.Id,
 			"user_id":       a.UserId,
+			"username":      a.Username,
 			"provider":      a.Provider,
 			"subject":       a.Subject,
 			"email":         a.Email,
@@ -165,7 +172,8 @@ func (c *OAuthController) HandleSaveProvider() mvc.Result {
 	form.Name = strings.ToLower(strings.TrimSpace(form.Name))
 	form.OriginalName = strings.ToLower(strings.TrimSpace(form.OriginalName))
 	form.DisplayName = strings.TrimSpace(form.DisplayName)
-	form.AccountRole = strings.ToLower(strings.TrimSpace(form.AccountRole))
+	// Provider 不预设本地账户角色；未指定绑定时只允许自动创建普通用户。
+	form.AccountRole = "user"
 	validProviderTypes := map[string]bool{
 		"github":    true,
 		"qq":        true,
@@ -183,9 +191,7 @@ func (c *OAuthController) HandleSaveProvider() mvc.Result {
 	if !oauthProviderNamePattern.MatchString(form.Name) {
 		return c.Error(nil, errcode.New(errcode.ERR2103.Code, errcode.ERR2103.Message).Error())
 	}
-	if form.AccountRole != "user" {
-		form.AccountRole = "admin"
-	}
+	form.AutoCreateAdmin = false
 	if err := validateOAuthRedirectURL(form.RedirectURL); err != nil {
 		return c.dbError(err)
 	}
