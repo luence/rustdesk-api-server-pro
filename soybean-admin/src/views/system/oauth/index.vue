@@ -383,7 +383,6 @@ onMounted(() => {
         :columns="columns"
         :data="data"
         size="small"
-        :flex-height="!appStore.isMobile"
         :scroll-x="1200"
         :loading="loading"
         remote

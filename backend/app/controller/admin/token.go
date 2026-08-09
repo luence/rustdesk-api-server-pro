@@ -144,15 +144,14 @@ func (c *TokenController) HandleClear() mvc.Result {
 		return c.Error(nil, errcode.New(errcode.ERR1010.Code, errcode.ERR1010.Message).Error())
 	}
 
-	_, err := c.Db.Where("is_admin = 0").Delete(&model.AuthToken{})
+	currentToken := c.GetAuthToken()
+	if currentToken == nil {
+		return c.Error(nil, errcode.New(errcode.ERR9002.Code, errcode.ERR9002.Message).Error())
+	}
+	affected, err := c.Db.Where("id != ?", currentToken.Id).Delete(&model.AuthToken{})
 	if err != nil {
 		return c.dbError(err)
 	}
 
-	_, err = c.Db.Where("is_admin = 1 AND user_id != ?", currentUser.Id).Delete(&model.AuthToken{})
-	if err != nil {
-		return c.dbError(err)
-	}
-
-	return c.Success(nil, "ok")
+	return c.Success(iris.Map{"cleared": affected, "retained": 1}, "ok")
 }

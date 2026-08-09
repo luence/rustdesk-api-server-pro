@@ -118,10 +118,17 @@ function handlePageSizeChange(size: number) {
 async function handleClearAll() {
   try {
     clearing.value = true;
-    const { error } = await request({ url: '/tokens/clear', method: 'post' });
+    const { data: result, error } = await request<{ cleared: number; retained: number }>({
+      url: '/tokens/clear',
+      method: 'post'
+    });
     if (!error) {
-      window.$message?.success($t('common.deleteSuccess'));
-      loadData();
+      if ((result?.cleared || 0) > 0) {
+        window.$message?.success(`已清除 ${result?.cleared} 个 Token，当前登录 Token 已保留`);
+      } else {
+        window.$message?.info('没有可清除的其他 Token，当前登录 Token 必须保留');
+      }
+      await loadData();
     }
   } finally {
     clearing.value = false;
