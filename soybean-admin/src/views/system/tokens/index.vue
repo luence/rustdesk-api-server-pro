@@ -1,6 +1,6 @@
 <script setup lang="tsx">
 import { onMounted, ref } from 'vue';
-import { NButton, NPopconfirm, NSpace, NTag } from 'naive-ui';
+import { NButton, NSpace, NTag } from 'naive-ui';
 import { $t } from '@/locales';
 import { useAppStore } from '@/store/modules/app';
 import { request } from '@/service/request';
@@ -49,16 +49,16 @@ const columns = [
     align: 'center' as const,
     render: (row: any) => (
       <NSpace size="small" justify="center">
-        <NPopconfirm disabled={row.is_current} onPositiveClick={() => handleKill(row)}>
-          {{
-            default: () => $t('common.confirmDelete'),
-            trigger: () => (
-              <NButton type="error" size="small" quaternary disabled={row.is_current} loading={killingId.value === row.id}>
-                {row.is_current ? '当前 Token' : $t('page.user.sessions.kill')}
-              </NButton>
-            )
-          }}
-        </NPopconfirm>
+        <NButton
+          type="error"
+          size="small"
+          quaternary
+          disabled={row.is_current}
+          loading={killingId.value === row.id}
+          onClick={() => confirmKill(row)}
+        >
+          {row.is_current ? '当前 Token' : $t('page.user.sessions.kill')}
+        </NButton>
       </NSpace>
     )
   }
@@ -94,6 +94,17 @@ async function handleKill(row: any) {
   }
 }
 
+function confirmKill(row: any) {
+  if (row.is_current) return;
+  window.$dialog?.warning({
+    title: $t('common.tip'),
+    content: $t('common.confirmDelete'),
+    positiveText: $t('common.confirm'),
+    negativeText: $t('common.cancel'),
+    onPositiveClick: () => handleKill(row)
+  });
+}
+
 function handlePageChange(page: number) {
   currentPage.value = page;
   loadData();
@@ -117,6 +128,16 @@ async function handleClearAll() {
   }
 }
 
+function confirmClearAll() {
+  window.$dialog?.warning({
+    title: $t('common.tip'),
+    content: $t('common.confirmClear'),
+    positiveText: $t('common.confirm'),
+    negativeText: $t('common.cancel'),
+    onPositiveClick: handleClearAll
+  });
+}
+
 onMounted(() => {
   loadData();
 });
@@ -126,12 +147,9 @@ onMounted(() => {
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
     <NCard :title="$t('route.system_tokens')" :bordered="false" size="small" class="sm:flex-1-hidden card-wrapper">
       <template #header-extra>
-        <NPopconfirm @positive-click="handleClearAll">
-          {{ $t('common.confirmClear') }}
-          <template #trigger>
-            <NButton type="error" size="small" :loading="clearing">{{ $t('common.clear') }}</NButton>
-          </template>
-        </NPopconfirm>
+        <NButton type="error" size="small" :loading="clearing" @click="confirmClearAll">
+          {{ $t('common.clear') }}
+        </NButton>
       </template>
       <NDataTable
         :columns="columns"

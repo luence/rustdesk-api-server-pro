@@ -275,6 +275,7 @@ var (
 	ERR9001 = register("ERR-9001", "NoSessionIds", "session", "未选择要操作的会话", "至少选择一个会话", "No sessions selected for operation", "Select at least one session")
 	ERR9002 = register("ERR-9002", "NoTokenIds", "token", "未选择要操作的 Token", "至少选择一个 Token", "No tokens selected for operation", "Select at least one token")
 	ERR9003 = register("ERR-9003", "UUIDEmpty", "mail-log", "邮件日志 UUID 不能为空", "提供有效的 UUID", "Mail log UUID cannot be empty", "Provide a valid UUID")
+	ERR9004 = register("ERR-9004", "TokenNotFound", "token", "指定的 Token 不存在", "刷新列表后重试", "The specified token does not exist", "Refresh the list and try again")
 )
 
 var (

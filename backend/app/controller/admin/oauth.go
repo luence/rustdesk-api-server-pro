@@ -57,19 +57,27 @@ func (c *OAuthController) HandleListAccounts() mvc.Result {
 	pageSize := c.Ctx.URLParamIntDefault("size", 10)
 
 	query := func() *xorm.Session {
-		return c.Db.Table(&model.OAuthAccount{}).
-			Join("INNER", &model.User{}, "oauth_account.user_id = user.id").
-			Desc("oauth_account.id")
+		return c.Db.Table(&model.OAuthAccount{}).Desc("oauth_account.id")
 	}
 
-	type oauthAccountRow struct {
-		model.OAuthAccount `xorm:"extends"`
-		Username           string `xorm:"user.username"`
-	}
 	pagination := db.NewPagination(currentPage, pageSize)
-	accountList := make([]oauthAccountRow, 0)
-	if err := pagination.Paginate(query, &oauthAccountRow{}, &accountList); err != nil {
+	accountList := make([]model.OAuthAccount, 0)
+	if err := pagination.Paginate(query, &model.OAuthAccount{}, &accountList); err != nil {
 		return c.dbError(err)
+	}
+	userIDs := make([]int, 0, len(accountList))
+	for _, account := range accountList {
+		userIDs = append(userIDs, account.UserId)
+	}
+	users := make([]model.User, 0)
+	if len(userIDs) > 0 {
+		if err := c.Db.In("id", userIDs).Cols("id", "username").Find(&users); err != nil {
+			return c.dbError(err)
+		}
+	}
+	usernames := make(map[int]string, len(users))
+	for _, user := range users {
+		usernames[user.Id] = user.Username
 	}
 
 	list := make([]iris.Map, 0, len(accountList))
@@ -77,7 +85,7 @@ func (c *OAuthController) HandleListAccounts() mvc.Result {
 		list = append(list, iris.Map{
 			"id":            a.Id,
 			"user_id":       a.UserId,
-			"username":      a.Username,
+			"username":      usernames[a.UserId],
 			"provider":      a.Provider,
 			"subject":       a.Subject,
 			"email":         a.Email,
