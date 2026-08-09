@@ -193,6 +193,9 @@ func (c *CompatPublicController) HandleOidcAuth() mvc.Result {
 }
 
 func (c *CompatPublicController) HandleOidcAuthQuery() mvc.Result {
+	// RustDesk 桌面端的同步 OIDC 轮询在部分 Windows 构建中不会正确解压
+	// 成功响应。等待响应较短而不触发压缩，因此会表现为登录后一直等待。
+	_ = c.Ctx.CompressWriter(false)
 	code := strings.TrimSpace(c.Ctx.URLParamDefault("code", ""))
 
 	if code == "" {

@@ -32,7 +32,7 @@ func newApp(cfg *config.ServerConfig, dbEngine *xorm.Engine) (*iris.Application,
 		context.Application().Logger().Infof("(404)▶ %s:%s", context.Method(), context.Request().URL.Path)
 	})
 
-	app.Use(iris.Compression)
+	app.Use(clientCompatibleCompression)
 	app.Use(middleware.ContainerLogRecorder(app))
 	if cfg.HttpConfig.PrintRequestLog {
 		app.Use(middleware.RequestLogger(cfg.DebugMode))
@@ -43,6 +43,15 @@ func newApp(cfg *config.ServerConfig, dbEngine *xorm.Engine) (*iris.Application,
 	app.HandleDir("/", iris.Dir(cfg.HttpConfig.StaticDir))
 
 	return app, nil
+}
+
+// clientCompatibleCompression 为官方客户端同步轮询保留未压缩响应。
+func clientCompatibleCompression(ctx iris.Context) {
+	if ctx.Path() == "/api/oidc/auth-query" {
+		ctx.Next()
+		return
+	}
+	iris.Compression(ctx)
 }
 
 func StartServer() (bool, error) {
