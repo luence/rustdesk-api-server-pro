@@ -2,12 +2,12 @@
 import { computed, onMounted, ref } from 'vue';
 import type { Component } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { getPaletteColorByNumber, mixColor } from '@sa/color';
 import { $t } from '@/locales';
 import { useAppStore } from '@/store/modules/app';
 import { useAuthStore } from '@/store/modules/auth';
 import { useThemeStore } from '@/store/modules/theme';
 import { loginModuleRecord } from '@/constants/app';
+import { useWebBackground } from '@/hooks/common/web-background';
 import PwdLogin from './modules/pwd-login.vue';
 import UserLogin from './modules/user-login.vue';
 
@@ -23,6 +23,7 @@ const authStore = useAuthStore();
 const themeStore = useThemeStore();
 const route = useRoute();
 const router = useRouter();
+const { backgroundStyle } = useWebBackground();
 const ticketProcessing = ref(false);
 
 interface LoginModule {
@@ -36,18 +37,6 @@ const moduleMap: Record<UnionKey.LoginModule, LoginModule> = {
 };
 
 const activeModule = computed(() => moduleMap[props.module || 'pwd-login']);
-
-const bgThemeColor = computed(() =>
-  themeStore.darkMode ? getPaletteColorByNumber(themeStore.themeColor, 600) : themeStore.themeColor
-);
-
-const bgColor = computed(() => {
-  const COLOR_WHITE = '#ffffff';
-
-  const ratio = themeStore.darkMode ? 0.5 : 0.2;
-
-  return mixColor(COLOR_WHITE, themeStore.themeColor, ratio);
-});
 
 async function consumeOAuthTicket(ticket: string) {
   if (ticketProcessing.value) return false;
@@ -138,9 +127,8 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="relative size-full flex-center overflow-hidden" :style="{ backgroundColor: bgColor }">
-    <WaveBg :theme-color="bgThemeColor" />
-    <NCard :bordered="false" class="relative z-4 w-auto rd-12px lt-sm:max-h-screen lt-sm:overflow-y-auto">
+  <div class="relative size-full flex-center overflow-hidden p-16px" :style="backgroundStyle">
+    <NCard :bordered="false" class="login-card relative z-4 w-auto rd-12px lt-sm:max-h-screen lt-sm:overflow-y-auto">
       <div class="w-320px lt-sm:w-[calc(100vw-48px)] lt-sm:px-4px">
         <header class="flex-y-center justify-between">
           <SystemLogo class="text-48px text-primary lt-sm:text-36px" />
@@ -173,4 +161,10 @@ onMounted(async () => {
   </div>
 </template>
 
-<style scoped></style>
+<style scoped>
+.login-card {
+  background-color: rgb(var(--card-color) / 88%);
+  box-shadow: 0 20px 55px rgb(0 0 0 / 28%);
+  backdrop-filter: blur(14px);
+}
+</style>

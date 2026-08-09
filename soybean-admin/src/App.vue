@@ -5,6 +5,7 @@ import type { WatermarkProps } from 'naive-ui';
 import { useAppStore } from './store/modules/app';
 import { useThemeStore } from './store/modules/theme';
 import { naiveDateLocales, naiveLocales } from './locales/naive';
+import { useWebBackground } from './hooks/common/web-background';
 
 defineOptions({
   name: 'App'
@@ -12,6 +13,7 @@ defineOptions({
 
 const appStore = useAppStore();
 const themeStore = useThemeStore();
+const { globalBackgroundEnabled, backgroundStyle } = useWebBackground();
 
 const naiveDarkTheme = computed(() => (themeStore.darkMode ? darkTheme : undefined));
 
@@ -48,11 +50,19 @@ const watermarkProps = computed<WatermarkProps>(() => {
     :date-locale="naiveDateLocale"
     class="h-full"
   >
-    <AppProvider>
-      <RouterView class="bg-layout" />
-      <NWatermark v-if="themeStore.watermark?.visible" v-bind="watermarkProps" />
-    </AppProvider>
+    <div class="relative h-full overflow-hidden" :class="{ 'web-background-enabled': globalBackgroundEnabled }">
+      <div v-if="globalBackgroundEnabled" class="pointer-events-none absolute inset-0" :style="backgroundStyle"></div>
+      <AppProvider>
+        <RouterView class="relative z-1 bg-layout" />
+        <NWatermark v-if="themeStore.watermark?.visible" v-bind="watermarkProps" />
+      </AppProvider>
+    </div>
   </NConfigProvider>
 </template>
 
-<style scoped></style>
+<style>
+.web-background-enabled .bg-layout {
+  background-color: rgb(var(--base-color) / 72%) !important;
+  backdrop-filter: blur(5px);
+}
+</style>

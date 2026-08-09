@@ -1,22 +1,19 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
-import { getPaletteColorByNumber, mixColor } from '@sa/color';
 import { useAppStore } from '@/store/modules/app';
 import { useThemeStore } from '@/store/modules/theme';
+import { useWebBackground } from '@/hooks/common/web-background';
 
 defineOptions({ name: 'ClientOAuthResultPage' });
 
 const route = useRoute();
 const appStore = useAppStore();
 const themeStore = useThemeStore();
+const { backgroundStyle } = useWebBackground();
 
 const success = computed(() => route.query.status === 'success');
 const errorCode = computed(() => (typeof route.query.error_code === 'string' ? route.query.error_code : ''));
-const bgThemeColor = computed(() =>
-  themeStore.darkMode ? getPaletteColorByNumber(themeStore.themeColor, 600) : themeStore.themeColor
-);
-const bgColor = computed(() => mixColor('#ffffff', themeStore.themeColor, themeStore.darkMode ? 0.5 : 0.2));
 
 function returnToClient() {
   window.location.href = 'rustdesk://config/';
@@ -32,8 +29,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="relative size-full flex-center overflow-hidden p-24px" :style="{ backgroundColor: bgColor }">
-    <WaveBg :theme-color="bgThemeColor" />
+  <div class="relative size-full flex-center overflow-hidden p-24px" :style="backgroundStyle">
     <NCard :bordered="false" class="relative z-4 w-auto rd-12px text-center">
       <div class="w-320px max-w-[calc(100vw-48px)]">
         <header class="flex-y-center justify-between">

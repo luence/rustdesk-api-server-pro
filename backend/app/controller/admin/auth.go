@@ -553,8 +553,8 @@ func (c *AuthController) GetWebauthnAuthPage() mvc.Result {
 <title>Passkey 认证</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #f5f5f5; }
-.card { background: #fff; border-radius: 12px; padding: 40px; max-width: 400px; width: 90%; box-shadow: 0 2px 12px rgba(0,0,0,0.08); text-align: center; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 16px; background-color: #07172f; background-image: linear-gradient(rgba(5,14,31,.34),rgba(5,14,31,.48)), var(--web-background, url("/login-background.jpg")); background-position: center; background-size: cover; background-repeat: no-repeat; }
+.card { background: rgba(255,255,255,.9); border-radius: 12px; padding: 40px; max-width: 400px; width: 90%; box-shadow: 0 20px 55px rgba(0,0,0,.28); backdrop-filter: blur(14px); text-align: center; }
 .icon { font-size: 48px; margin-bottom: 16px; }
 h2 { color: #333; margin-bottom: 8px; }
 p { color: #666; margin-bottom: 24px; line-height: 1.5; }
@@ -564,6 +564,7 @@ p { color: #666; margin-bottom: 24px; line-height: 1.5; }
 </style>
 </head>
 <body>
+<script>(function(){try{var m=localStorage.getItem("rustdesk-background-mode"),u="/login-background.jpg";if(m==="bing")u="/api/background/bing";else if(m==="upload"){var x=localStorage.getItem("rustdesk-background-upload");if(x&&x.indexOf("data:image/")===0)u=x}document.documentElement.style.setProperty("--web-background",'url("'+u.replace(/["\\]/g,"")+'")')}catch(e){}})();</script>
 <div class="card">
   <div class="icon">🔑</div>
   <h2>Passkey 认证</h2>
@@ -708,8 +709,8 @@ func (c *AuthController) GetWebauthnRegisterPage() mvc.Result {
 <title>Passkey 注册</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #f5f5f5; }
-.card { background: #fff; border-radius: 12px; padding: 40px; max-width: 400px; width: 90%; box-shadow: 0 2px 12px rgba(0,0,0,0.08); text-align: center; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 16px; background-color: #07172f; background-image: linear-gradient(rgba(5,14,31,.34),rgba(5,14,31,.48)), var(--web-background, url("/login-background.jpg")); background-position: center; background-size: cover; background-repeat: no-repeat; }
+.card { background: rgba(255,255,255,.9); border-radius: 12px; padding: 40px; max-width: 400px; width: 90%; box-shadow: 0 20px 55px rgba(0,0,0,.28); backdrop-filter: blur(14px); text-align: center; }
 .icon { font-size: 48px; margin-bottom: 16px; }
 h2 { color: #333; margin-bottom: 8px; }
 p { color: #666; margin-bottom: 24px; line-height: 1.5; }
@@ -719,6 +720,7 @@ p { color: #666; margin-bottom: 24px; line-height: 1.5; }
 </style>
 </head>
 <body>
+<script>(function(){try{var m=localStorage.getItem("rustdesk-background-mode"),u="/login-background.jpg";if(m==="bing")u="/api/background/bing";else if(m==="upload"){var x=localStorage.getItem("rustdesk-background-upload");if(x&&x.indexOf("data:image/")===0)u=x}document.documentElement.style.setProperty("--web-background",'url("'+u.replace(/["\\]/g,"")+'")')}catch(e){}})();</script>
 <div class="card">
   <div class="icon">🔑</div>
   <h2>Passkey 注册</h2>

@@ -11,10 +11,13 @@
 3. `PROJECT_WORKFLOW.md`：项目结构、主分支开发、验证、提交和发布规范。
 4. `LESSONS_LEARNED.md`：经验教训与技术笔记（含 OAuth 回调、中间件、错误码、部署流程、性能/安全建议）。
 5. `DOCUMENTATION_GUIDE.md`：文档体系规范，定义文档职责划分和维护规范。
+6. `CHANGELOG.md`：版本变更记录。
+7. `RELEASE_NOTES.md`：当前发布说明。
+8. `TODO.md`：后续工作清单。
 
 ## 部署与运维
 
-6. `DOCKER.md`：Docker / Docker Compose 安装、配置、升级和排查。
+9. `DOCKER.md`：Docker / Docker Compose 安装、配置、升级和排查。
 7. `OPENWRT_ONE_CONTAINER.md`：OpenWrt x86 / 软路由一体化部署与对齐更新。
 8. `PORTS.md`：端口与访问路径说明。
 9. `TROUBLESHOOTING.md`：常见问题与排查。

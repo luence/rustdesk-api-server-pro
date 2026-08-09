@@ -223,8 +223,8 @@ func (c *OAuthController) HandleWebauthLoginPage() mvc.Result {
 <title>登录</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #f5f5f5; }
-.card { background: #fff; border-radius: 12px; padding: 40px; max-width: 380px; width: 90%; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 16px; background-color: #07172f; background-image: linear-gradient(rgba(5,14,31,.34),rgba(5,14,31,.48)), var(--web-background, url("/login-background.jpg")); background-position: center; background-size: cover; background-repeat: no-repeat; }
+.card { background: rgba(255,255,255,.9); border-radius: 12px; padding: 40px; max-width: 380px; width: 90%; box-shadow: 0 20px 55px rgba(0,0,0,.28); backdrop-filter: blur(14px); }
 h2 { text-align: center; margin-bottom: 24px; color: #333; }
 input { width: 100%; padding: 12px 16px; border: 1px solid #d9d9d9; border-radius: 8px; font-size: 15px; margin-bottom: 16px; transition: border-color .2s; }
 input:focus { outline: none; border-color: #1890ff; }
@@ -239,6 +239,7 @@ button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size
 </style>
 </head>
 <body>
+<script>(function(){try{var m=localStorage.getItem("rustdesk-background-mode"),u="/login-background.jpg";if(m==="bing")u="/api/background/bing";else if(m==="upload"){var x=localStorage.getItem("rustdesk-background-upload");if(x&&x.indexOf("data:image/")===0)u=x}document.documentElement.style.setProperty("--web-background",'url("'+u.replace(/["\\]/g,"")+'")')}catch(e){}})();</script>
 <div class="card">
   <h2>RustDesk 登录</h2>
   <div id="login-form">

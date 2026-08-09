@@ -80,6 +80,7 @@ var (
 	ERR1008 = register("ERR-1008", "TokenRequired", "auth", "缺少认证 Token", "请求必须携带有效的 Authorization Token", "Authentication token missing", "The request must include a valid Authorization Token")
 	ERR1009 = register("ERR-1009", "IdRequired", "auth", "缺少设备 ID", "CLI 设备操作必须提供设备 ID", "Device ID missing", "CLI device operations require a device ID")
 	ERR1010 = register("ERR-1010", "Unauthorized", "auth", "未授权访问", "请先登录，或检查 Token 是否有效", "Unauthorized access", "Please log in first, or check if the Token is valid")
+	ERR1011 = register("ERR-1011", "BingBackgroundUnavailable", "system", "Bing 每日背景暂时不可用", "检查服务器网络连接，稍后重试或切换到固定背景", "Bing daily background is unavailable", "Check the server network and retry later, or use the fixed background")
 )
 
 var ErrUnauthorized = New(ERR1010.Code, ERR1010.Message)

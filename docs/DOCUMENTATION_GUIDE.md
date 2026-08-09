@@ -11,9 +11,6 @@
 | `README.md` | 项目主文档（中文），面向用户和开发者 | 每次发布或重大变更 |
 | `README_EN.md` | 项目主文档（英文） | 与 README.md 同步 |
 | `AGENTS.md` | 项目开发指南，AI 代理和开发者使用 | 开发规则变更时 |
-| `CHANGELOG.md` | 变更日志，按版本记录功能变更 | 每次版本发布 |
-| `TODO.md` | 待办事项 | 持续更新 |
-| `RELEASE_NOTES.md` | 发布说明 | 每次版本发布 |
 | `VERSION` | 版本号文件（单一事实来源） | CI 自动递增 |
 
 ### 二、合规文档（根目录）
@@ -34,6 +31,9 @@
 | 文档 | 职责 | 维护时机 |
 |------|------|----------|
 | `README.md` | 文档索引 | 文档结构变更时 |
+| `CHANGELOG.md` | 变更日志，按版本记录功能变更 | 每次版本发布 |
+| `TODO.md` | 待办事项 | 持续更新 |
+| `RELEASE_NOTES.md` | 发布说明 | 每次版本发布 |
 | `CURRENT_STATUS.md` | 当前仓库状态（架构、能力、待办、已知问题） | 每次开发后 |
 | `LESSONS_LEARNED.md` | 经验教训与技术笔记 | 每次踩坑或技术决策后 |
 | `PROJECT_DESCRIPTION.md` | 项目详细描述 | 架构变更时 |
@@ -81,8 +81,8 @@
 - `CURRENT_STATUS.md` 中的版本号必须同步
 
 ### 3. 文档更新时机
-- 新增功能：更新 `CHANGELOG.md`、`CURRENT_STATUS.md`、相关专项文档
-- 修复 bug：更新 `CHANGELOG.md`、`CURRENT_STATUS.md`（如影响已知问题）
+- 新增功能：更新 `docs/CHANGELOG.md`、`docs/CURRENT_STATUS.md`、相关专项文档
+- 修复 bug：更新 `docs/CHANGELOG.md`、`docs/CURRENT_STATUS.md`（如影响已知问题）
 - 踩坑经验：更新 `LESSONS_LEARNED.md`
 - 架构变更：更新 `PROJECT_DESCRIPTION.md`、`CURRENT_STATUS.md`
 - 部署变更：更新 `DOCKER.md`、`CURRENT_STATUS.md`、`AGENTS.md`

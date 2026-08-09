@@ -48,7 +48,7 @@ git push origin v1.1.17
 
 仓库维护者可在 GitHub Actions 中打开“构建并发布版本”，点击“Run workflow”并填写：
 
-- `tag_name`：发布标签，例如 `v1.2.60`；留空时自动读取 `VERSION`。
+- `tag_name`：发布标签，例如 `v1.3.0`；留空时自动读取 `VERSION`。
 - `target_ref`：构建来源，默认 `main`，也可填写明确提交 SHA。
 - `release_title`：可选的发布标题；留空时生成标准标题。
 - `prerelease`：是否标记为预发布版本。

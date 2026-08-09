@@ -5,6 +5,7 @@ import DarkMode from './modules/dark-mode.vue';
 import LayoutMode from './modules/layout-mode.vue';
 import ThemeColor from './modules/theme-color.vue';
 import PageFun from './modules/page-fun.vue';
+import WebBackground from './modules/web-background.vue';
 import ConfigOperation from './modules/config-operation.vue';
 
 defineOptions({
@@ -21,6 +22,7 @@ const appStore = useAppStore();
       <LayoutMode />
       <ThemeColor />
       <PageFun />
+      <WebBackground />
       <template #footer>
         <ConfigOperation />
       </template>
