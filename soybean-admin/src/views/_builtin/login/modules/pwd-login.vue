@@ -114,7 +114,15 @@ async function finishOAuthBinding(data?: { ticket: string; client: boolean; redi
   }
   if (data?.ticket) {
     const redirect = typeof data.redirect === 'string' && data.redirect.startsWith('/') ? data.redirect : '/';
-    window.location.replace(`/#/login?oauth_ticket=${encodeURIComponent(data.ticket)}&redirect=${encodeURIComponent(redirect)}`);
+    const consumed = await authStore.loginByOAuthTicket(data.ticket, false);
+    if (!consumed) {
+      window.$message?.error($t('api.RequestError'));
+      return false;
+    }
+    const nextUrl = new URL(window.location.href);
+    nextUrl.search = '';
+    nextUrl.hash = redirect === '/' ? '#/' : redirect.startsWith('/#/') ? redirect.slice(1) : `#${redirect}`;
+    window.location.replace(nextUrl.toString());
     return true;
   }
   return false;
@@ -262,6 +270,7 @@ onMounted(() => {
       </NButton>
       <NButton
         v-if="oauthBindingTicket && oauthAllowCreate"
+        attr-type="button"
         secondary
         round
         block
