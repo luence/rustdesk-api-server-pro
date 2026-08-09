@@ -193,9 +193,6 @@ func (c *CompatPublicController) HandleOidcAuth() mvc.Result {
 }
 
 func (c *CompatPublicController) HandleOidcAuthQuery() mvc.Result {
-	// RustDesk 桌面端的同步 OIDC 轮询在部分 Windows 构建中不会正确解压
-	// 成功响应。等待响应较短而不触发压缩，因此会表现为登录后一直等待。
-	_ = c.Ctx.CompressWriter(false)
 	code := strings.TrimSpace(c.Ctx.URLParamDefault("code", ""))
 
 	if code == "" {
@@ -224,13 +221,10 @@ func (c *CompatPublicController) HandleOidcAuthQuery() mvc.Result {
 	return rustdeskOIDCQueryResponse(result)
 }
 
-// rustdeskOIDCQueryResponse 按官方客户端 HttpResponseBody 结构输出固定 JSON，
-// 避免 MVC 内容协商改变 body 字符串的编码方式。
+// rustdeskOIDCQueryResponse 直接输出服务端业务 JSON。官方客户端的
+// http_request_sync 会自行将原始 HTTP 响应包装为 HttpResponseBody。
 func rustdeskOIDCQueryResponse(body string) mvc.Response {
-	payload, _ := json.Marshal(struct {
-		Body string `json:"body"`
-	}{Body: body})
-	return mvc.Response{ContentType: "application/json; charset=utf-8", Text: string(payload)}
+	return mvc.Response{ContentType: "application/json; charset=utf-8", Text: body}
 }
 
 func (c *CompatPublicController) HandleRecord() mvc.Result {
