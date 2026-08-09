@@ -168,6 +168,15 @@ grep -q 'withQuery(adminLoginCallbackTarget(redirectTo), "oidc_error", "auth_fai
 grep -q 'withQuery(target, "oauth_error", oauthCallbackErrorCode(err))' backend/app/controller/admin/auth.go || fail "OAuth redirect error must use login callback target and sanitized code mapping"
 grep -q 'func oauthCallbackErrorCode(err error) string' backend/app/controller/admin/auth.go || fail "OAuth redirect error sanitizer missing"
 
+# Admin/user route ownership must match the intended permission boundaries.
+grep -q 'adminWithAuthMvc.Handle(new(admin.MailTemplateController))' backend/app/route.go || fail "mail templates must require administrator authentication"
+grep -q 'adminWithAuthMvc.Handle(new(admin.MaiLogsController))' backend/app/route.go || fail "mail logs must require administrator authentication"
+grep -q 'adminOrUserAuthMvc.Handle(new(admin.DevicesController))' backend/app/route.go || fail "personal device list must be available to authenticated users"
+if grep -q 'adminOrUserAuthMvc.Handle(new(admin.MailTemplateController))\|adminOrUserAuthMvc.Handle(new(admin.MaiLogsController))' backend/app/route.go; then
+  fail "mail management must not be exposed to ordinary users"
+fi
+grep -q 'Where("user_id = ? and status = 1 and expired > ?", user.Id' backend/app/controller/admin/devices.go || fail "ordinary user device list must filter by current account"
+
 # Generic OAuth provider must not rely on plaintext AuthToken writes or timing-sensitive state signature checks.
 if awk '
   /authToken := &model\.AuthToken\{/ { in_auth_token=1 }

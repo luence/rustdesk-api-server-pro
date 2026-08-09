@@ -254,7 +254,7 @@ export const generatedRoutes: GeneratedRoute[] = [
         meta: {
           title: 'system_mail',
           i18nKey: 'route.system_mail',
-          roles: ['R_SUPER', 'R_USER']
+          roles: ['R_SUPER']
         },
         children: [
           {
@@ -265,7 +265,7 @@ export const generatedRoutes: GeneratedRoute[] = [
               title: 'system_mail_logs',
               i18nKey: 'route.system_mail_logs',
               icon: 'icon-park-outline:upload-logs',
-              roles: ['R_SUPER', 'R_USER']
+              roles: ['R_SUPER']
             }
           },
           {
@@ -276,7 +276,7 @@ export const generatedRoutes: GeneratedRoute[] = [
               title: 'system_mail_template',
               i18nKey: 'route.system_mail_template',
               icon: 'fluent:mail-template-16-regular',
-              roles: ['R_SUPER', 'R_USER']
+              roles: ['R_SUPER']
             }
           }
         ]

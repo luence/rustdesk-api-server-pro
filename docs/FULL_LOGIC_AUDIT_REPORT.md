@@ -1,388 +1,81 @@
-# Rustdesk-api-server-pro 全功能逻辑审计报告
-
-**审计日期**: 2026-08-07  
-**审计范围**: 后端全部控制器/服务/中间件 + 前端路由/状态/API/页面  
-**审计版本**: v1.2.16  
-
----
-
-## 一、审计总览
-
-| 模块 | Critical | High | Medium | Low | 小计 |
-|------|----------|------|--------|-----|------|
-| M1-认证授权 | 2 | 4 | 3 | 10 | 19 |
-| M2-用户与设备 | 5 | 7 | 7 | 4 | 23 |
-| M3-日志与监控 | 2 | 5 | 9 | 8 | 24 |
-| M4-配置与系统 | 6 | 8 | 16 | 10 | 40 |
-| M5-前端逻辑 | 7 | 16 | 27 | 12 | 62 |
-| **合计** | **22** | **40** | **62** | **44** | **168** |
-
-> 注: M5中去除了3个与M1-M4重复的问题，实际独立问题约165个。
-
----
-
-## 二、Critical 问题清单（22个）
-
-### 后端 - 认证授权（M1）
-
-| ID | 文件:行 | 描述 | 影响 |
-|----|---------|------|------|
-| M1-C1 | `middleware/auth.go` | AdminAuth isAdmin回退：非管理员token通过AdminAuth时isAdmin默认设为true | 权限提升：普通用户获得管理员权限 |
-| M1-C2 | `middleware/auth.go` | AdminAuth与ApiAuth的token提取方式不一致（Bearer前缀） | 部分请求认证失败 |
-
-### 后端 - 用户与设备（M2）
-
-| ID | 文件:行 | 描述 | 影响 |
-|----|---------|------|------|
-| M2-C1 | `middleware/auth.go` | 同M1-C1，AdminAuth回退权限提升 | 权限提升 |
-| M2-C2 | `controller/admin/users.go` | 用户CRUD缺权限检查 | 普通用户可增删改用户 |
-| M2-C3 | `controller/admin/users.go` | 用户删除不级联且可删自己 | 数据残留/自我删除导致系统不可用 |
-| M2-C4 | `repository/xorm_system_repository.go` | 设备心跳不更新updated_at | 离线检测完全失效 |
-| M2-C5 | `controller/admin/devices.go` | 设备禁用不断开已建立连接 | 禁用设备仍可连接 |
-
-### 后端 - 日志与监控（M3）
-
-| ID | 文件:行 | 描述 | 影响 |
-|----|---------|------|------|
-| M3-C1 | `controller/admin/mail_template.go` | 邮件模板不存在时nil指针panic | 服务崩溃 |
-| M3-C2 | `controller/admin/audit.go` | 文件传输审计查询用了错误表前缀 | SQL错误，功能不可用 |
-
-### 后端 - 配置与系统（M4）
-
-| ID | 文件:行 | 描述 | 影响 |
-|----|---------|------|------|
-| M4-C1 | `controller/admin/token.go` | HandleClear未保护当前管理员token | 管理员清空自己的token导致登出 |
-| M4-C2 | `controller/admin/sessions.go` | HandleKill可终止自己且无审计 | 自我终止导致管理中断 |
-| M4-C3 | `controller/admin/sessions.go` | HandleKill用RemoveElement(ids,1)硬编码逻辑错误 | 保护当前session逻辑失效 |
-| M4-C4 | `controller/admin/sessions.go` | HandleClear与HandleList范围不一致 | 清除范围超出预期 |
-| M4-C5 | `config/config.go` | 配置写入非真原子(Windows) | 配置文件可能被清空 |
-| M4-C6 | `config/config.go` | GetServerConfig自动写入默认配置 | 可能覆盖已有配置 |
-
-### 前端 - 路由与权限（M5）
-
-| ID | 文件:行 | 描述 | 影响 |
-|----|---------|------|------|
-| M5-C1 | `hooks/common/router.ts:97` | redirectFromLogin开放重定向漏洞 | 钓鱼攻击/OAuth令牌窃取 |
-| M5-C2 | `login/modules/pwd-login.vue:84` | OAuth登录URL传递redirect未校验 | OAuth开放重定向 |
-| M5-C3 | `store/modules/auth/index.ts:43` | $reset恢复旧Token导致登出后状态不一致 | 登出后仍显示已登录 |
-| M5-C4 | `router/guard/route.ts:44` | 已登录用户OAuth票据丢失 | OAuth绑定流程中断 |
-| M5-C5 | `store/modules/auth/index.ts:65` | Token未在Bootstrap失败时清理 | 半登录状态 |
-| M5-C6 | `router/elegant/routes.ts:294` | system_server路由缺roles限制 | 普通用户可修改服务器配置 |
-| M5-C7 | `router/elegant/routes.ts:122` | audit_loginlogs路由缺roles限制 | 普通用户可查看所有登录日志 |
-
----
-
-## 三、High 问题清单（40个）
-
-### 后端 - 认证授权（M1: 4个）
-- M1-H1: 并发map无锁读取panic (`service/oauth_provider_service.go`)
-- M1-H2: OIDC内存存储多实例不可用 (`service/oidc_auth_service.go`)
-- M1-H3: OAuth用户绑定TOCTOU竞态 (`service/oauth_provider_service.go`)
-- M1-H4: OAuthAccount缺(provider,subject)唯一约束
-
-### 后端 - 用户与设备（M2: 7个）
-- M2-H1: 设备心跳并发竞态产生重复记录
-- M2-H2: 2FA验证码检查逻辑错误
-- M2-H3: 邮箱验证码重放攻击
-- M2-H4: 2FA码永不过期
-- M2-H5: 分页参数无边界校验除零panic
-- M2-H6: 地址簿权限检查不一致
-- M2-H7: 地址簿规则更新信息泄露
-
-### 后端 - 日志与监控（M3: 5个）
-- M3-H1: 分页TotalPage计算错误(整除多1页)
-- M3-H2: 分页参数无边界校验
-- M3-H3: MailService单例模式失效
-- M3-H4: 容器日志中间件每请求创建goroutine无缓冲
-- M3-H5: 日志表无自动轮转磁盘无限增长
-
-### 后端 - 配置与系统（M4: 8个）
-- M4-H1: 配置热更新不一致(c.Cfg vs GetServerConfig)
-- M4-H2: OAuth Provider重名校验失效
-- M4-H3: secret保留逻辑可被绕过
-- M4-H4: HandleDeleteProvider不校验name格式
-- M4-H5: HandleDeleteAccount不校验id范围
-- M4-H6: SSRF风险(探测不限制内网IP)
-- M4-H7: extractErrCode字符串解析脆弱
-- M4-H8: Error启动goroutine无panic保护
-
-### 前端 - 路由与权限（M5: 10个）
-- M5-H1: resetStore在导航守卫内调用router.push引发竞态
-- M5-H2: initUserInfo未await resetStore导致竞态
-- M5-H3: initAuthRoute无并发保护
-- M5-H4: 请求实例handleLogout未await resetStore
-- M5-H5: clearAuthStorage未清理isAdmin/userType/globalTabs
-- M5-H6: audit_loginlogs对非管理员可访问（同M5-C7，路由层面）
-- M5-H7: system_server对非管理员可访问（同M5-C6，路由层面）
-- M5-H8: 无Token刷新机制（假死状态）
-- M5-H9: OAuth票据可重放/未单次消费
-- M5-H10: OIDC票据成功后未清理URL
-
-### 前端 - API与页面（M5: 6个）
-- M5-H11: API函数大量使用any类型（address-book/audit/devices等）
-- M5-H12: 用户编辑表单密码输入框未设type="password"
-- M5-H13: user-login.vue绕过Auth Store直接window.location.href跳转
-- M5-H14: pwd-login.vue OAuth登录双击竞态条件
-- M5-H15: oauth/index.vue保存配置无表单验证
-- M5-H16: workspace系列页面load缺try/finally，loading可能卡死
-- M5-H17: card-data.vue卡片详情加载竞态条件
-- M5-H18: config-operation.vue Clipboard实例未销毁内存泄漏
-
----
-
-## 四、修复优先级排序
-
-### P0 - 立即修复（安全漏洞，影响生产）
-
-1. **M1-C1/M2-C1**: AdminAuth isAdmin回退权限提升 → 后端
-2. **M5-C6/M5-H7**: system_server路由缺roles → 前端
-3. **M5-C7/M5-H6**: audit_loginlogs路由缺roles → 前端
-4. **M5-C1**: redirectFromLogin开放重定向 → 前端
-5. **M5-C2**: OAuth登录URL开放重定向 → 前端
-6. **M5-C3**: $reset恢复旧Token → 前端
-7. **M5-H5**: clearAuthStorage未清理isAdmin → 前端
-8. **M2-C2**: 用户CRUD缺权限检查 → 后端
-9. **M4-C1**: HandleClear未保护当前管理员 → 后端
-10. **M4-C3**: HandleKill RemoveElement逻辑错误 → 后端
-
-### P1 - 尽快修复（功能缺陷/数据安全）
-
-11. **M5-C5**: Token未在Bootstrap失败时清理 → 前端
-12. **M5-C4**: 已登录用户OAuth票据丢失 → 前端
-13. **M2-C4**: 设备心跳不更新updated_at → 后端
-14. **M2-C3**: 用户删除不级联且可删自己 → 后端
-15. **M3-C1**: 邮件模板nil指针panic → 后端
-16. **M3-C2**: 文件传输审计错误表前缀 → 后端
-17. **M4-C5**: 配置写入非真原子 → 后端
-18. **M5-H12**: 密码输入框明文显示 → 前端
-19. **M5-H16**: workspace页面loading卡死 → 前端
-20. **M5-H13**: user-login.vue绕过Auth Store → 前端
-
-### P2 - 计划修复（健壮性/体验）
-
-21-40: 其余High问题
-41-168: Medium和Low问题
-
----
-
-## 五、前端修复方案（可立即执行）
-
-### 修复1: 路由权限缺失（M5-C6, M5-C7）
-
-**文件**: `soybean-admin/src/router/elegant/routes.ts`
-
-```diff
-// audit_loginlogs 添加 roles
-{
-  name: 'audit_loginlogs',
-  meta: {
-+   roles: ['R_SUPER'],
-    ...
-  }
-}
-
-// system_server 添加 roles
-{
-  name: 'system_server',
-  meta: {
-+   roles: ['R_SUPER'],
-    ...
-  }
-}
-```
-
-### 修复2: 开放重定向（M5-C1）
-
-**文件**: `soybean-admin/src/hooks/common/router.ts`
-
-```diff
-async function redirectFromLogin() {
-  const redirect = route.value.query?.redirect as string;
--  if (redirect) {
-+  if (redirect && redirect.startsWith('/') && !redirect.startsWith('//')) {
-    return routerPush(redirect);
-  }
-  return toHome();
-}
-```
-
-### 修复3: $reset恢复旧Token（M5-C3）
-
-**文件**: `soybean-admin/src/store/modules/auth/index.ts`
-
-```diff
-async function resetStore() {
-  clearAuthStorage();
--  authStore.$reset();
-+  token.value = '';
-+  Object.assign(userInfo, { userId: '', userName: '', roles: [], buttons: [] });
-+  isLogin.value = false;
-  if (!route.meta.constant) {
-    await toLogin();
-  }
-  tabStore.cacheTabs();
-  routeStore.resetStore();
-}
-```
-
-### 修复4: clearAuthStorage未清理全部（M5-H5）
-
-**文件**: `soybean-admin/src/store/modules/auth/shared.ts`
-
-```diff
-export function clearAuthStorage() {
-  localStg.remove('token');
-  localStg.remove('refreshToken');
-+  localStg.remove('isAdmin');
-+  localStg.remove('userType');
-+  localStg.remove('globalTabs');
-}
-```
-
-### 修复5: Token未在Bootstrap失败时清理（M5-C5）
-
-**文件**: `soybean-admin/src/store/modules/auth/index.ts`
-
-```diff
-async function applyTokenAndBootstrap(loginToken) {
-  localStg.set('token', loginToken.token);
-  const pass = await getUserInfo();
-  if (pass) {
-    token.value = loginToken.token;
-    return true;
-  }
-+  clearAuthStorage();
-  return false;
-}
-
-async function login(model, redirect = true) {
-  ...
-  if (!error) {
-    const pass = await applyTokenAndBootstrap(loginToken);
-    if (pass) {
-      ...
-    }
-+   else {
-+     resetStore();
-+   }
-  } else {
-    resetStore();
-  }
-  ...
-}
-```
-
-### 修复6: 密码输入框明文（M5-H12）
-
-**文件**: `soybean-admin/src/views/user/list/components/edit.vue`
-
-```diff
-<NInput
-  v-model:value="model.password"
-+ type="password"
-+ show-password-on="click"
-  :placeholder="$t('page.user.list.inputPassword')"
-/>
-```
-
-### 修复7: workspace页面loading卡死（M5-H16）
-
-**文件**: `soybean-admin/src/views/workspace/sessions/index.vue`（及devices/security/overview）
-
-```diff
-async function load() {
-+  try {
-    loading.value = true;
-    const { data: r } = await fetchMySessions({ ... });
-    if (r) {
-      data.value = r.records;
-      total.value = r.total;
-    }
-+  } finally {
-    loading.value = false;
-+  }
-}
-```
-
-### 修复8: OAuth登录双击竞态（M5-H14）
-
-**文件**: `soybean-admin/src/views/_builtin/login/modules/pwd-login.vue`
-
-```diff
-async function handleOAuthLogin(provider: Api.Auth.OAuthProvider) {
-+  if (activeProvider.value) return;
-  activeProvider.value = provider.name;
-  ...
-}
-```
-
----
-
-## 六、后端修复方案（需CI/CD部署）
-
-### 修复1: AdminAuth权限提升（M1-C1）
-
-**文件**: `backend/app/middleware/auth.go`
-
-核心问题：非管理员token通过AdminAuth时，isAdmin应设为false而非true。需检查具体代码确认修复方案。
-
-### 修复2: 用户CRUD权限检查（M2-C2）
-
-**文件**: `backend/app/controller/admin/users.go`
-
-所有用户管理接口应检查当前用户是否为管理员。
-
-### 修复3: HandleKill逻辑错误（M4-C3）
-
-**文件**: `backend/app/controller/admin/sessions.go`
-
-RemoveElement(ids, 1)应改为RemoveElement(ids, currentSessionID)。
-
-### 修复4: 设备心跳更新updated_at（M2-C4）
-
-**文件**: `backend/internal/repository/xorm_system_repository.go`
-
-心跳更新时应同时更新updated_at字段。
-
----
-
-## 七、建议的修复批次
-
-### 批次1: 前端安全修复（可立即构建部署）
-- M5-C6: system_server路由roles
-- M5-C7: audit_loginlogs路由roles
-- M5-C1: redirectFromLogin开放重定向
-- M5-C2: OAuth登录URL校验
-- M5-C3: $reset恢复旧Token
-- M5-H5: clearAuthStorage清理
-- M5-C5: Bootstrap失败清理
-- M5-H12: 密码输入框type
-- M5-H16: workspace loading try/finally
-- M5-H14: OAuth双击竞态
-
-### 批次2: 后端安全修复（需CI/CD）
-- M1-C1: AdminAuth权限提升
-- M2-C2: 用户CRUD权限
-- M4-C1: HandleClear保护
-- M4-C3: HandleKill逻辑
-- M2-C4: 设备心跳updated_at
-- M3-C1: 邮件模板nil指针
-- M3-C2: 文件传输审计表前缀
-
-### 批次3: 前端功能修复
-- M5-C4: OAuth票据丢失
-- M5-H13: user-login.vue统一登录
-- M5-H15: OAuth配置表单验证
-- M5-H8: Token刷新机制
-- M5-H9/H10: OAuth票据清理
-
-### 批次4: 后端功能修复
-- M2-C3: 用户删除级联
-- M2-C5: 设备禁用断开
-- M4-C5: 配置原子写入
-- 其余High问题
-
----
-
-**报告生成时间**: 2026-08-07  
-**下一步**: 按批次1执行前端安全修复，构建并部署验证
+# 全仓功能逻辑审计报告
+
+更新时间：2026-08-09
+
+## 审计结论
+
+本报告替换旧版 `v1.2.16` 问题快照。旧报告把已经修复的问题继续列为 Critical/High，不能代表当前仓库状态。
+
+本轮完成了源代码级全仓扫描、完整测试、前端生产构建以及测试设备真实登录验收。没有条件配置真实应用的第三方 Provider 只完成协议实现和自动测试，不能标记为线上实测通过。
+
+## 已执行检查
+
+- 后端：`go test ./...`、`go vet ./...`。
+- 前端：`npm run typecheck`、`npm run build`。
+- 安全：安全回归、合规、CodeQL、OAuth ticket 单次消费及回调目标检查。
+- 错误出口：扫描控制器的 `Error`、`fail`、`failMsg`、直接 JSON/文本响应和原始 `errors.New`/`fmt.Errorf`。
+- 页面布局：扫描 `soybean-admin/src` 中固定宽度、固定定位、禁止换行、绝对定位和溢出规则。
+- 权限：核对前端路由角色与后端中间件，不以隐藏菜单代替服务端授权。
+- 登录：使用完全退出的浏览器状态实测 Web OAuth；使用本机 RustDesk 实测客户端 WebAuth。
+
+## 登录逻辑
+
+### Web 后台 OAuth/OIDC
+
+- 回调始终返回公开的 `/#/login`，不会把 ticket 放到受保护页面。
+- 原目标通过经过规范化的 `redirect` 参数单独保存。
+- 登录页兑换一次性 ticket、加载用户信息和权限路由后，以清理过 ticket 的同源 URL 进入目标页面。
+- 已有本地 token 时仍消费新的第三方 ticket，避免旧账户掩盖新登录结果。
+- Gitee 已在完全退出的浏览器状态下实测：回调成功、`/admin/auth/oauth/token` 返回 200、安全审计记录兑换成功、最终账户为 Provider 绑定用户。
+
+### 客户端 WebAuth/OAuth
+
+- WebAuth 使用官方轮询协议直接向客户端返回认证体。
+- 浏览器 URI scheme 只用于可选的客户端聚焦，不传递 token。
+- 第三方登录结果页和 WebAuth 使用相同的紫色背景、深色卡片、品牌、响应式尺寸及返回/关闭操作。
+- 回调 HTML 不输出 poll token、ticket、access token 或 Secret。
+
+## 权限矩阵
+
+| 功能 | 管理员 | 普通用户 | 后端约束 |
+|---|---|---|---|
+| 用户、会话管理 | 全部 | 不可访问 | `AdminAuth` |
+| 邮件模板、邮件日志 | 全部 | 不可访问 | `AdminAuth` |
+| OAuth Provider 配置 | 全部 | 不可访问 | 页面角色与写操作管理员检查 |
+| Token 管理 | 全部 | 不可访问 | 页面角色与写操作管理员检查 |
+| 服务器配置 | 可编辑 | 只读、可复制和连通性检查 | 写操作检查管理员身份 |
+| 设备列表 | 查看全部 | 仅当前账户关联设备 | `AdminOrUserAuth` + `user_id` 关联 token 过滤 |
+| 通讯录 | 查看和管理授权范围 | 仅本人及共享规则允许范围 | 后端 owner/rule 校验 |
+| 审计信息 | 全部 | 按页面与账户范围只读 | 查询范围过滤，清理操作检查管理员身份 |
+
+普通用户邮件权限已同时从前端路由和后端路由移除。设备控制器已从 `AdminAuth` 移到 `AdminOrUserAuth`，其非管理员查询只使用当前用户有效 token 中的 RustDesk ID。
+
+## 错误码审计
+
+- 管理后台、用户门户和客户端控制器公共错误出口会保留已有 `ERR-xxxx`，并把遗留无编码错误归一为 `ERR-B010`。
+- OAuth/OIDC 回调使用 `ERR-22xx`，不把内部错误文本放入重定向参数。
+- 鉴权中间件的 401/406 使用 `StopWithJSON`。
+- 邮件、Apple OAuth 和 WebAuthn 中发现的原始错误构造已改为注册错误码。
+- 官方 RustDesk 客户端要求的轮询未完成哨兵文本属于协议值，不是业务错误；保持官方字面值，避免破坏兼容性。
+
+结论：通过公共控制器返回的业务失败均保证包含错误码。以后新增绕过公共控制器的响应时，必须同步增加错误码检查或明确记录官方协议例外。
+
+## 页面布局审计
+
+- 登录页、OAuth 回调页、邮件日志和邮件模板弹窗都使用视口最大宽高和内部滚动。
+- 全部数据表使用横向滚动或移动分页，未发现无响应式约束的 400px 以上固定页面宽度。
+- 服务器客户端链接配置按钮允许换行；641–1100px 时按钮移动到输入框下一行；640px 以下整行堆叠。
+- 固定定位仅剩全局顶部加载进度条，属于预期行为。
+
+页面仍需在新增组件时持续做桌面、半屏和移动端截图回归；一次静态审计不能永久保证以后新增页面不会重叠。
+
+## 仓库与文档
+
+- `VERSION` 是版本唯一事实来源，状态文档不复制 CI 自动递增版本号。
+- 已删除无路由引用的旧关于页面和过期的对话续接提示词。
+- `CURRENT_STATUS.md` 记录当前能力与边界；本报告只记录审计方法和结论，不再保存易过期的问题数量快照。
+
+## 尚需外部条件的验收
+
+- QQ、Google、Microsoft、GitLab、WeChat、Apple 等 Provider 需要各自真实应用、回调白名单和可用账户才能完成线上端到端验收。
+- 浏览器不允许普通标签页由脚本关闭时，必须使用页面上的关闭提示；这是浏览器限制，不是回调失败。

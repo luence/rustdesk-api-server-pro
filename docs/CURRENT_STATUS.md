@@ -37,6 +37,7 @@ RustDesk API Server Pro 是兼容 RustDesk 客户端 API 的第三方服务端�
 - 客户端回调写入轮询结果，浏览器成功页不承担 token 回传职责。
 - 回调失败统一传递 `ERR-22xx`，前端仍兼容旧版符号参数。
 - Provider 配置以数据库中的 `oauth.providers` 为准；GitHub、QQ、Google、Microsoft、Gitee、GitLab、WeChat、Apple 已具备协议适配。真实可用性仍取决于 Provider 配置、账户绑定规则和部署环境外网连通性。
+- Web 后台回调固定进入公开登录页消费 ticket，原目标独立放入安全 `redirect`；已有会话不会跳过新的第三方 ticket。
 
 ### Passkey
 
@@ -55,6 +56,8 @@ Passkey/WebAuthn 是独立的可选后台登录能力，不参与 RustDesk 客�
 - 登录弹窗、邮件日志详情和邮件模板编辑弹窗均限制在当前视口内，并支持内部滚动。
 - 表格页面沿用公共自适应表格容器；窄屏操作区允许换行。
 - 已移除未注册且会干扰 Elegant Router 类型生成的旧 `views/about/index.vue`，当前使用 `about/version` 和 `about/help` 子页面。
+- 普通用户不显示也不能调用邮件模板和邮件日志管理；设备列表仅返回当前账户关联设备。
+- 服务器客户端链接配置在半屏宽度下把操作按钮换行到输入框下方，移动端按单列排列。
 
 ## 验证基线
 
@@ -67,7 +70,7 @@ Passkey/WebAuthn 是独立的可选后台登录能力，不参与 RustDesk 客�
 
 测试设备上的真实链路验证：
 
-- Web 后台 GitHub OAuth 成功后进入个人资料页。
+- Web 后台 Gitee OAuth 已在完全退出的浏览器状态下完成 ticket 兑换并进入绑定用户页面。
 - RustDesk 客户端退出后选择 WebAuth，浏览器完成密码认证并自动关闭标签页，客户端结束等待状态并显示已登录账户。
 
 Windows 下 ZIP 路径安全检查已同时识别 Unix 根路径、Windows 根路径和盘符；Unix 文件权限断言只在支持该语义的平台执行。

@@ -835,6 +835,8 @@ watch(
 
 .config-actions {
   display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
   gap: 8px;
   justify-content: flex-end;
 }
@@ -891,6 +893,17 @@ watch(
   word-break: keep-all;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+@media (max-width: 1100px) and (min-width: 641px) {
+  .config-row {
+    grid-template-columns: 92px 84px minmax(0, 1fr);
+  }
+
+  .config-actions {
+    grid-column: 3;
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 640px) {
