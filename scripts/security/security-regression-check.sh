@@ -164,8 +164,8 @@ grep -q 'oidc.redirectUrl or oauth.providers\[\].redirectUrl' backend/app/contro
 if grep -n 'withQuery(redirectTo, "oidc_error", err.Error())\|withQuery(redirectTo, "oauth_error", err.Error())' backend/app/controller/admin/auth.go; then
   fail "OAuth/OIDC redirect errors must not expose raw internal errors"
 fi
-grep -q 'withQuery(redirectTo, "oidc_error", "auth_failed")' backend/app/controller/admin/auth.go || fail "OIDC redirect error must use sanitized code"
-grep -q 'withQuery(redirectTo, "oauth_error", oauthCallbackErrorCode(err))' backend/app/controller/admin/auth.go || fail "OAuth redirect error must use sanitized code mapping"
+grep -q 'withQuery(adminLoginCallbackTarget(redirectTo), "oidc_error", "auth_failed")' backend/app/controller/admin/auth.go || fail "OIDC redirect error must use login callback target and sanitized code"
+grep -q 'withQuery(target, "oauth_error", oauthCallbackErrorCode(err))' backend/app/controller/admin/auth.go || fail "OAuth redirect error must use login callback target and sanitized code mapping"
 grep -q 'func oauthCallbackErrorCode(err error) string' backend/app/controller/admin/auth.go || fail "OAuth redirect error sanitizer missing"
 
 # Generic OAuth provider must not rely on plaintext AuthToken writes or timing-sensitive state signature checks.
