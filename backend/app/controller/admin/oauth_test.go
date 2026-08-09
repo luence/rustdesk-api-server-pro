@@ -2,6 +2,7 @@ package admin
 
 import (
 	"errors"
+	"net/url"
 	"rustdesk-api-server-pro/internal/errcode"
 	"testing"
 )
@@ -16,6 +17,28 @@ func TestValidateOAuthRedirectURL(t *testing.T) {
 		if err := validateOAuthRedirectURL(invalid); err == nil {
 			t.Fatalf("expected %q to be rejected", invalid)
 		}
+	}
+}
+
+func TestAdminLoginCallbackTarget(t *testing.T) {
+	target := adminLoginCallbackTarget("/#/user/profile")
+	parsed, err := url.Parse(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fragment, err := url.Parse(parsed.Fragment)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fragment.Path != "/login" || fragment.Query().Get("redirect") != "/#/user/profile" {
+		t.Fatalf("unexpected callback target: %q", target)
+	}
+
+	rootTarget := adminLoginCallbackTarget("/#/login")
+	rootParsed, _ := url.Parse(rootTarget)
+	rootFragment, _ := url.Parse(rootParsed.Fragment)
+	if rootFragment.Query().Get("redirect") != "/" {
+		t.Fatalf("login callback must fall back to root: %q", rootTarget)
 	}
 }
 

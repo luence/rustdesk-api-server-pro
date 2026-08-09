@@ -4,7 +4,6 @@ import type { Component } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { getPaletteColorByNumber, mixColor } from '@sa/color';
 import { $t } from '@/locales';
-import { localStg } from '@/utils/storage';
 import { useAppStore } from '@/store/modules/app';
 import { useAuthStore } from '@/store/modules/auth';
 import { useThemeStore } from '@/store/modules/theme';
@@ -66,6 +65,13 @@ function safeLoginRedirect(value: unknown) {
   return value;
 }
 
+function finishTicketLogin(target: string) {
+  const nextUrl = new URL(window.location.href);
+  nextUrl.search = '';
+  nextUrl.hash = target === '/' ? '#/' : `#${target}`;
+  window.location.replace(nextUrl.toString());
+}
+
 onMounted(async () => {
   let shouldReplaceQuery = false;
   const rawSearchQuery: Record<string, string> = {};
@@ -96,20 +102,13 @@ onMounted(async () => {
 
   const oauthTicket = mergedQuery.oauth_ticket;
   if (typeof oauthTicket === 'string' && oauthTicket) {
-    if (localStg.get('token')) {
-      delete q.oauth_ticket;
-      delete q.oauth_provider;
-      delete q.oauth_error;
-      await router.replace({ path: route.path, query: q, hash: route.hash });
-      return;
-    }
     const target = safeLoginRedirect(mergedQuery.redirect);
     const consumed = await consumeOAuthTicket(oauthTicket);
     delete q.oauth_ticket;
     delete q.oauth_provider;
     delete q.oauth_error;
     if (consumed) {
-      await router.replace(target);
+      finishTicketLogin(target);
     } else {
       window.$message?.error($t('api.RequestError'));
       await router.replace({ path: route.path, query: q, hash: route.hash });
@@ -124,7 +123,7 @@ onMounted(async () => {
     delete q.oidc_ticket;
     delete q.oidc_error;
     if (consumed) {
-      await router.replace(target);
+      finishTicketLogin(target);
     } else {
       window.$message?.error($t('api.RequestError'));
       await router.replace({ path: route.path, query: q, hash: route.hash });

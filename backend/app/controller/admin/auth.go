@@ -9,6 +9,7 @@ import (
 	"rustdesk-api-server-pro/internal/core"
 	"rustdesk-api-server-pro/internal/errcode"
 	v2service "rustdesk-api-server-pro/internal/service"
+	"rustdesk-api-server-pro/internal/transport/httpdto"
 	"rustdesk-api-server-pro/util"
 	"strconv"
 	"strings"
@@ -200,12 +201,12 @@ func (c *AuthController) GetAuthOidcCallback() mvc.Result {
 	ticket, redirectTo, err := service.ConsumeAdminCallback(code, state)
 	if err != nil {
 		c.recordAdminSecurityAudit("admin_oidc_callback", false, err.Error())
-		c.Ctx.Redirect(withQuery(redirectTo, "oidc_error", "auth_failed"), iris.StatusFound)
+		c.Ctx.Redirect(withQuery(adminLoginCallbackTarget(redirectTo), "oidc_error", "auth_failed"), iris.StatusFound)
 		return mvc.Response{}
 	}
 
 	c.recordAdminSecurityAudit("admin_oidc_callback", true, "ticket")
-	target := withQuery(redirectTo, "oidc_ticket", ticket)
+	target := withQuery(adminLoginCallbackTarget(redirectTo), "oidc_ticket", ticket)
 	c.Ctx.Redirect(target, iris.StatusFound)
 	return mvc.Response{}
 }
@@ -257,7 +258,8 @@ func (c *AuthController) HandleOauthCallback() mvc.Result {
 			return c.renderOAuthCallbackPage(false, oauthCallbackErrorCode(err), pollToken)
 		}
 		c.recordAdminSecurityAudit("admin_oauth_callback", false, provider+": "+err.Error())
-		c.Ctx.Redirect(withQuery(redirectTo, "oauth_error", oauthCallbackErrorCode(err)), iris.StatusFound)
+		target := withQuery(adminLoginCallbackTarget(redirectTo), "oauth_provider", provider)
+		c.Ctx.Redirect(withQuery(target, "oauth_error", oauthCallbackErrorCode(err)), iris.StatusFound)
 		return mvc.Response{}
 	}
 
@@ -267,60 +269,14 @@ func (c *AuthController) HandleOauthCallback() mvc.Result {
 	}
 
 	c.recordAdminSecurityAudit("admin_oauth_callback", true, provider+": ticket")
-	target := withQuery(withQuery(redirectTo, "oauth_provider", provider), "oauth_ticket", ticket)
+	target := withQuery(adminLoginCallbackTarget(redirectTo), "oauth_provider", provider)
+	target = withQuery(target, "oauth_ticket", ticket)
 	c.Ctx.Redirect(target, iris.StatusFound)
 	return mvc.Response{}
 }
 
 func (c *AuthController) renderOAuthCallbackPage(success bool, errorCode, pollToken string) mvc.Result {
-	var title, body string
-	var schemeURL string
-	if success && pollToken != "" {
-		schemeURL = "rustdesk://config/"
-	}
-	if success {
-		title = "第三方登录成功"
-		if schemeURL != "" {
-			body = "<p class=\"ok\">已成功登录！</p>"
-			body += "<a href=\"" + schemeURL + "\" class=\"launch-btn\" id=\"launch-btn\">返回 RustDesk 客户端</a>"
-			body += "<p class=\"tip\">客户端正在自动获取认证结果。页面将尝试自动关闭；若浏览器阻止关闭，可直接关闭此标签页。</p>"
-		} else {
-			body = "<p class=\"ok\">已成功登录，请回到客户端继续。</p>"
-		}
-	} else {
-		title = "第三方登录失败"
-		body = "<p class=\"err\">登录失败，请回到客户端重试。</p><p class=\"code\">错误码：" + errorCode + "</p>"
-	}
-	html := `<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>` + title + `</title>
-<style>
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"PingFang SC","Microsoft YaHei",sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f5f5}
-.card{background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.08);padding:40px 48px;max-width:420px;text-align:center}
-h1{font-size:20px;margin:0 0 16px}
-.ok{color:#16a34a;font-size:16px;margin-bottom:8px}
-.err{color:#dc2626;font-size:16px}
-.code{color:#6b7280;font-size:13px;margin-top:8px}
-.launch-btn{display:inline-block;margin-top:16px;padding:14px 36px;background:#2563eb;color:#fff;border-radius:8px;text-decoration:none;font-size:18px;font-weight:600;transition:background .2s;box-shadow:0 2px 8px rgba(37,99,235,.3)}
-.launch-btn:hover{background:#1d4ed8;transform:translateY(-1px)}
-.tip{color:#9ca3af;font-size:13px;margin-top:16px;line-height:1.6}
-</style>
-</head>
-<body>
-<div class="card">
-<h1>` + title + `</h1>
-` + body + `
-</div>
-<script>
-if (` + strconv.FormatBool(success) + `) {
-  window.setTimeout(function () { window.close(); }, 1200);
-}
-</script>
-</body>
-</html>`
+	html := httpdto.OAuthCallbackPage(success, errorCode, pollToken)
 	c.Ctx.ContentType("text/html; charset=utf-8")
 	_, _ = c.Ctx.WriteString(html)
 	return mvc.Response{}
@@ -419,6 +375,14 @@ func withQuery(target, key, value string) string {
 	q.Set(key, value)
 	u.RawQuery = q.Encode()
 	return u.String()
+}
+
+// adminLoginCallbackTarget 将第三方认证结果统一交给公开登录页消费。
+func adminLoginCallbackTarget(redirectTo string) string {
+	if redirectTo == "" || redirectTo == "/#/login" {
+		redirectTo = "/"
+	}
+	return withQuery("/#/login", "redirect", redirectTo)
 }
 
 func (c *AuthController) GetWebauthnEnabled() mvc.Result {
