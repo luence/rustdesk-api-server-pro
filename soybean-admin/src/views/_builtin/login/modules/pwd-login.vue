@@ -83,7 +83,7 @@ async function handleSubmit() {
 }
 
 function launchRustDesk() {
-  window.location.href = 'rustdesk://';
+  window.location.href = 'rustdesk://config/';
 }
 
 function closeClientWebauthPage() {

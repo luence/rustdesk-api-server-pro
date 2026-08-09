@@ -116,8 +116,8 @@ type oauthPollEntry struct {
 	Result    string
 }
 
-// rustdeskClientAuthBody 仅包含 RustDesk 官方客户端认证响应的必需字段。
-// 可选字段在不同客户端构建中曾出现类型差异，省略后由客户端使用官方默认值。
+// rustdeskClientAuthBody 同时覆盖 RustDesk 新旧客户端认证响应字段。
+// 新客户端忽略 token_type 等旧字段，旧客户端则依赖 status、is_admin 等字段。
 type rustdeskClientAuthBody struct {
 	AccessToken string                 `json:"access_token"`
 	Type        string                 `json:"type"`
@@ -125,11 +125,23 @@ type rustdeskClientAuthBody struct {
 }
 
 type rustdeskClientAuthUser struct {
-	Name string                 `json:"name"`
-	Info rustdeskClientUserInfo `json:"info"`
+	Name          string                 `json:"name"`
+	DisplayName   *string                `json:"display_name"`
+	Avatar        *string                `json:"avatar"`
+	Email         *string                `json:"email"`
+	Note          *string                `json:"note"`
+	Status        int                    `json:"status"`
+	Info          rustdeskClientUserInfo `json:"info"`
+	IsAdmin       bool                   `json:"is_admin"`
+	ThirdAuthType *string                `json:"third_auth_type"`
 }
 
-type rustdeskClientUserInfo struct{}
+type rustdeskClientUserInfo struct {
+	EmailVerification      bool              `json:"email_verification"`
+	EmailAlarmNotification bool              `json:"email_alarm_notification"`
+	LoginDeviceWhitelist   []any             `json:"login_device_whitelist"`
+	Other                  map[string]string `json:"other"`
+}
 
 var globalOAuthRuntimeStore = &oauthRuntimeStore{
 	states:   map[string]oauthStateEntry{},
@@ -2072,8 +2084,13 @@ func newRustdeskClientAuthBody(token string, user *model.User) rustdeskClientAut
 		AccessToken: token,
 		Type:        "access_token",
 		User: rustdeskClientAuthUser{
-			Name: name,
-			Info: rustdeskClientUserInfo{},
+			Name:    name,
+			Status:  1,
+			IsAdmin: false,
+			Info: rustdeskClientUserInfo{
+				LoginDeviceWhitelist: []any{},
+				Other:                map[string]string{},
+			},
 		},
 	}
 }

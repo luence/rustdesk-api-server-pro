@@ -198,7 +198,7 @@ func (c *CompatPublicController) HandleOidcAuthQuery() mvc.Result {
 	if code == "" {
 		c.recordCompatAPIAudit(true, 400, "missing code", "", nil)
 		errJSON, _ := json.Marshal(iris.Map{"error": errcode.New(errcode.ERR2214.Code, errcode.ERR2214.Message).Error()})
-		return mvc.Response{Object: iris.Map{"body": string(errJSON)}}
+		return rustdeskOIDCQueryResponse(string(errJSON))
 	}
 
 	oauthService := service.NewOAuthProviderService(config.GetServerConfig(), c.Db)
@@ -206,19 +206,28 @@ func (c *CompatPublicController) HandleOidcAuthQuery() mvc.Result {
 	if err != nil {
 		c.recordCompatAPIAudit(true, 500, err.Error(), "", nil)
 		errJSON, _ := json.Marshal(iris.Map{"error": err.Error()})
-		return mvc.Response{Object: iris.Map{"body": string(errJSON)}}
+		return rustdeskOIDCQueryResponse(string(errJSON))
 	}
 	if result == "" {
 		c.recordCompatAPIAudit(false, 200, "pending", "", nil)
 		pendingJSON, _ := json.Marshal(iris.Map{"error": "No authed oidc is found"})
-		return mvc.Response{Object: iris.Map{"body": string(pendingJSON)}}
+		return rustdeskOIDCQueryResponse(string(pendingJSON))
 	}
 	resultSummary := result
 	if len(resultSummary) > 200 {
 		resultSummary = resultSummary[:200]
 	}
 	c.recordCompatAPIAudit(false, 200, "ok", resultSummary, nil)
-	return mvc.Response{Object: iris.Map{"body": result}}
+	return rustdeskOIDCQueryResponse(result)
+}
+
+// rustdeskOIDCQueryResponse 按官方客户端 HttpResponseBody 结构输出固定 JSON，
+// 避免 MVC 内容协商改变 body 字符串的编码方式。
+func rustdeskOIDCQueryResponse(body string) mvc.Response {
+	payload, _ := json.Marshal(struct {
+		Body string `json:"body"`
+	}{Body: body})
+	return mvc.Response{ContentType: "application/json; charset=utf-8", Text: string(payload)}
 }
 
 func (c *CompatPublicController) HandleRecord() mvc.Result {
