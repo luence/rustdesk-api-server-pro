@@ -191,15 +191,18 @@ func TestOAuthProviderService_ClientGitHubFlow(t *testing.T) {
 		t.Fatalf("unexpected client callback url: %s", u.Query().Get("redirect_uri"))
 	}
 
-	consumedPollToken, err := svc.ConsumeClientCallback("github", "github-code", state)
-	if err != nil {
-		t.Fatalf("consume client callback: %v", err)
-	}
+	consumedPollToken, bindingTicket, _, err := svc.ConsumeUnifiedCallback("github", "github-code", state)
 	if consumedPollToken != pollToken {
 		t.Fatalf("poll token mismatch: got %q want %q", consumedPollToken, pollToken)
 	}
+	if err == nil || bindingTicket == "" {
+		t.Fatalf("first client callback must require explicit binding: ticket=%q err=%v", bindingTicket, err)
+	}
+	if _, clientFlow, _, bindErr := svc.ConfirmOAuthBinding(bindingTicket, "", ""); bindErr != nil || !clientFlow {
+		t.Fatalf("explicit client user creation failed: client=%v err=%v", clientFlow, bindErr)
+	}
 
-	if _, replayErr := svc.ConsumeClientCallback("github", "github-code", state); replayErr == nil {
+	if _, _, _, replayErr := svc.ConsumeUnifiedCallback("github", "github-code", state); replayErr == nil {
 		t.Fatalf("client oauth state replay must be rejected")
 	}
 

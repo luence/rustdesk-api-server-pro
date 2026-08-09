@@ -285,6 +285,9 @@ func (c *AuthController) HandleOauthCallback() mvc.Result {
 		if ticket != "" && strings.HasPrefix(err.Error(), errcode.ERR2023.Code) {
 			target := withQuery(adminLoginCallbackTarget(redirectTo), "oauth_provider", provider)
 			target = withQuery(target, "oauth_bind_ticket", ticket)
+			if oauthProviderAllowsAutoCreate(provider) {
+				target = withQuery(target, "oauth_allow_create", "1")
+			}
 			c.Ctx.Redirect(target, iris.StatusFound)
 			return mvc.Response{}
 		}
@@ -308,6 +311,15 @@ func (c *AuthController) HandleOauthCallback() mvc.Result {
 	target = withQuery(target, "oauth_ticket", ticket)
 	c.Ctx.Redirect(target, iris.StatusFound)
 	return mvc.Response{}
+}
+
+func oauthProviderAllowsAutoCreate(providerName string) bool {
+	for _, provider := range config.GetServerConfig().OAuthProviders() {
+		if provider.Name == providerName {
+			return provider.AutoCreateUser
+		}
+	}
+	return false
 }
 
 func (c *AuthController) renderOAuthCallbackPage(success bool, errorCode, pollToken string) mvc.Result {

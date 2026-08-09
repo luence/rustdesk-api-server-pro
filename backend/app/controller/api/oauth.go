@@ -1,6 +1,7 @@
 package api
 
 import (
+	"net/url"
 	apiform "rustdesk-api-server-pro/app/form/api"
 	"rustdesk-api-server-pro/app/model"
 	"rustdesk-api-server-pro/config"
@@ -101,13 +102,30 @@ func (c *OAuthController) HandleCallback() mvc.Result {
 	code := c.Ctx.URLParamDefault("code", "")
 	state := c.Ctx.URLParamDefault("state", "")
 
-	pollToken, err := service.ConsumeClientCallback(provider, code, state)
+	pollToken, bindingTicket, _, err := service.ConsumeUnifiedCallback(provider, code, state)
 	if err != nil {
+		if bindingTicket != "" && strings.HasPrefix(err.Error(), errcode.ERR2023.Code) {
+			query := url.Values{"oauth_bind_ticket": {bindingTicket}, "oauth_provider": {provider}}
+			if clientOAuthProviderAllowsAutoCreate(provider) {
+				query.Set("oauth_allow_create", "1")
+			}
+			c.Ctx.Redirect("/#/login?"+query.Encode(), iris.StatusFound)
+			return mvc.Response{}
+		}
 		c.recordClientOAuthAudit("", false, "client_oauth_callback: "+provider+": "+err.Error())
 		return c.oauthCallbackPage(false, clientOAuthCallbackErrorCode(err), "")
 	}
 	c.recordClientOAuthAudit("", true, "client_oauth_callback: "+provider+": poll_token")
 	return c.oauthCallbackPage(true, "", pollToken)
+}
+
+func clientOAuthProviderAllowsAutoCreate(providerName string) bool {
+	for _, provider := range config.GetServerConfig().OAuthProviders() {
+		if provider.Name == providerName {
+			return provider.AutoCreateUser
+		}
+	}
+	return false
 }
 
 func (c *OAuthController) HandlePoll() mvc.Result {

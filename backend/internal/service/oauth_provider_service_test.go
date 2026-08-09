@@ -9,6 +9,7 @@ import (
 	"rustdesk-api-server-pro/config"
 	"rustdesk-api-server-pro/db"
 	"rustdesk-api-server-pro/util"
+	"strings"
 	"testing"
 	"time"
 )
@@ -164,20 +165,19 @@ func TestOAuthProviderService_GithubTicketFlow(t *testing.T) {
 		t.Fatalf("github authorization must use PKCE S256")
 	}
 
-	ticket, redirectTo, err := svc.ConsumeAdminCallback("github", "github-code", state)
-	if err != nil {
-		t.Fatalf("consume callback: %v", err)
-	}
-	if ticket == "" {
-		t.Fatalf("ticket should not be empty")
+	_, bindingTicket, redirectTo, err := svc.ConsumeUnifiedCallback("github", "github-code", state)
+	if err == nil || !strings.HasPrefix(err.Error(), "ERR-2023") || bindingTicket == "" {
+		t.Fatalf("first callback must require explicit binding: ticket=%q err=%v", bindingTicket, err)
 	}
 	if redirectTo == "" {
 		t.Fatalf("redirect should not be empty")
 	}
-	if _, failureRedirect, replayErr := svc.ConsumeAdminCallback("github", "github-code", state); replayErr == nil {
+	if _, _, _, replayErr := svc.ConsumeUnifiedCallback("github", "github-code", state); replayErr == nil {
 		t.Fatalf("oauth state replay must be rejected")
-	} else if failureRedirect != "/#/login" {
-		t.Fatalf("failed OAuth callback must return to login, got %q", failureRedirect)
+	}
+	ticket, clientFlow, _, err := svc.ConfirmOAuthBinding(bindingTicket, "", "")
+	if err != nil || ticket == "" || clientFlow {
+		t.Fatalf("explicit ordinary-user creation failed: ticket=%q client=%v err=%v", ticket, clientFlow, err)
 	}
 
 	token, _, err := svc.ExchangeAdminTicket(ticket)
@@ -249,9 +249,12 @@ func TestOAuthProviderService_QQTicketFlow(t *testing.T) {
 	if u.Query().Get("scope") != "get_user_info" || u.Query().Get("code_challenge") != "" {
 		t.Fatalf("unexpected QQ authorization query: %s", u.RawQuery)
 	}
-	ticket, _, err := svc.ConsumeAdminCallback("qq", "qq-code", u.Query().Get("state"))
-	if err != nil || ticket == "" {
-		t.Fatalf("consume QQ callback: ticket=%q err=%v", ticket, err)
+	_, bindingTicket, _, err := svc.ConsumeUnifiedCallback("qq", "qq-code", u.Query().Get("state"))
+	if err == nil || bindingTicket == "" {
+		t.Fatalf("QQ first callback must require binding: ticket=%q err=%v", bindingTicket, err)
+	}
+	if _, _, _, err = svc.ConfirmOAuthBinding(bindingTicket, "", ""); err != nil {
+		t.Fatalf("explicit QQ user creation failed: %v", err)
 	}
 	var account model.OAuthAccount
 	has, err := engine.Where("provider = ? and subject = ?", "qq", "qq-openid").Get(&account)
@@ -323,12 +326,12 @@ func TestOAuthProviderService_GithubTicketFlowWithoutInMemoryState(t *testing.T)
 	globalOAuthRuntimeStore.states = map[string]oauthStateEntry{}
 	globalOAuthRuntimeStore.mu.Unlock()
 
-	ticket, _, err := svc.ConsumeAdminCallback("github", "github-code", state)
-	if err != nil {
-		t.Fatalf("consume callback without in-memory state: %v", err)
+	_, bindingTicket, _, err := svc.ConsumeUnifiedCallback("github", "github-code", state)
+	if err == nil || bindingTicket == "" {
+		t.Fatalf("callback without in-memory state must require binding: ticket=%q err=%v", bindingTicket, err)
 	}
-	if ticket == "" {
-		t.Fatalf("ticket should not be empty")
+	if _, _, _, err = svc.ConfirmOAuthBinding(bindingTicket, "", ""); err != nil {
+		t.Fatalf("explicit user creation failed: %v", err)
 	}
 	var normalUsers []model.User
 	if err = engine.Where("is_admin = 0").Find(&normalUsers); err != nil || len(normalUsers) != 1 {

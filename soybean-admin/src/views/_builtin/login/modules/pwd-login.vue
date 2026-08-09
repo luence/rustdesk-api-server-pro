@@ -33,6 +33,7 @@ const clientPollToken = computed(() => {
 const oauthBindingTicket = computed(() =>
   typeof route.query.oauth_bind_ticket === 'string' ? route.query.oauth_bind_ticket : ''
 );
+const oauthAllowCreate = computed(() => route.query.oauth_allow_create === '1');
 
 const model: Api.Form.LoginForm = reactive({
   username: '',
@@ -76,16 +77,7 @@ async function handleSubmit() {
     oauthBindingLoading.value = true;
     try {
       const { data, error } = await fetchConfirmOAuthBinding(oauthBindingTicket.value, model);
-      if (!error && data?.client) {
-        clientWebauthCompleted.value = true;
-        window.setTimeout(closeClientWebauthPage, 1200);
-        return;
-      }
-      if (!error && data?.ticket) {
-        const redirect = typeof data.redirect === 'string' && data.redirect.startsWith('/') ? data.redirect : '/';
-        window.location.replace(`/#/login?oauth_ticket=${encodeURIComponent(data.ticket)}&redirect=${encodeURIComponent(redirect)}`);
-        return;
-      }
+      if (!error && (await finishOAuthBinding(data))) return;
       if (error?.response?.data?.message?.includes('CaptchaError')) handleCaptcha();
     } finally {
       oauthBindingLoading.value = false;
@@ -111,6 +103,40 @@ async function handleSubmit() {
   const err = await authStore.login(model);
   if (err?.response?.data?.message?.includes('CaptchaError')) {
     handleCaptcha();
+  }
+}
+
+async function finishOAuthBinding(data?: { ticket: string; client: boolean; redirect: string }) {
+  if (data?.client) {
+    clientWebauthCompleted.value = true;
+    window.setTimeout(closeClientWebauthPage, 1200);
+    return true;
+  }
+  if (data?.ticket) {
+    const redirect = typeof data.redirect === 'string' && data.redirect.startsWith('/') ? data.redirect : '/';
+    window.location.replace(`/#/login?oauth_ticket=${encodeURIComponent(data.ticket)}&redirect=${encodeURIComponent(redirect)}`);
+    return true;
+  }
+  return false;
+}
+
+async function handleCreateAndLogin() {
+  if (!oauthBindingTicket.value || !oauthAllowCreate.value || oauthBindingLoading.value) return;
+  if (captchaEnabled.value && !model.code.trim()) {
+    window.$message?.warning($t('page.login.common.codePlaceholder'));
+    return;
+  }
+  oauthBindingLoading.value = true;
+  try {
+    const { data, error } = await fetchConfirmOAuthBinding(oauthBindingTicket.value, {
+      ...model,
+      username: '',
+      password: ''
+    });
+    if (!error && (await finishOAuthBinding(data))) return;
+    if (error?.response?.data?.message?.includes('CaptchaError')) handleCaptcha();
+  } finally {
+    oauthBindingLoading.value = false;
   }
 }
 
@@ -233,6 +259,16 @@ onMounted(() => {
         @click="handleSubmit"
       >
         {{ oauthBindingTicket ? '验证并绑定' : $t('common.confirm') }}
+      </NButton>
+      <NButton
+        v-if="oauthBindingTicket && oauthAllowCreate"
+        secondary
+        round
+        block
+        :loading="oauthBindingLoading"
+        @click="handleCreateAndLogin"
+      >
+        创建普通用户并登录
       </NButton>
       <NDivider v-if="!oauthBindingTicket && oauthProviders.length > 0" class="!mt-0 !mb-0">
         {{ $t('page.login.common.thirdPartyLogin') }}

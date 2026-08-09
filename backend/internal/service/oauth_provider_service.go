@@ -857,17 +857,7 @@ func (s *OAuthProviderService) resolveOAuthUser(provider config.OAuthProviderCon
 			return nil, err
 		}
 		if !ok {
-			user, err := s.matchOrCreateOAuthUser(provider, claims)
-			if err != nil {
-				return nil, err
-			}
-			account.UserId = user.Id
-			account.Email = claims.Email
-			account.Name = claims.Name
-			account.Picture = claims.Picture
-			account.LastLoginAt = time.Now()
-			_, _ = s.db.Where("id = ?", account.Id).Cols("user_id", "email", "name", "picture", "last_login_at").Update(&account)
-			return user, nil
+			return nil, errcode.New(errcode.ERR2009.Code, errcode.ERR2009.Message)
 		}
 		account.Email = claims.Email
 		account.Name = claims.Name
@@ -877,38 +867,8 @@ func (s *OAuthProviderService) resolveOAuthUser(provider config.OAuthProviderCon
 		return &user, nil
 	}
 
-	user, err := s.matchOrCreateOAuthUser(provider, claims)
-	if err != nil {
-		return nil, err
-	}
-
-	newAccount := &model.OAuthAccount{
-		UserId:      user.Id,
-		Provider:    provider.Name,
-		Subject:     claims.Subject,
-		Email:       claims.Email,
-		Name:        claims.Name,
-		Picture:     claims.Picture,
-		IsAdmin:     user.IsAdmin,
-		Status:      1,
-		LastLoginAt: time.Now(),
-	}
-	_, err = s.db.Insert(newAccount)
-	if err != nil {
-		var existing model.OAuthAccount
-		hasExisting, queryErr := s.db.Where("provider = ? and subject = ? and status = 1", provider.Name, claims.Subject).Get(&existing)
-		if queryErr != nil || !hasExisting {
-			return nil, err
-		}
-		var existingUser model.User
-		userOk, userErr := s.db.Where("id = ? and status > 0", existing.UserId).Get(&existingUser)
-		if userErr != nil || !userOk {
-			return nil, err
-		}
-		return &existingUser, nil
-	}
-
-	return user, nil
+	// 首次身份必须由用户明确选择“绑定现有账户”或“创建普通用户”，回调阶段不得静默建号。
+	return nil, errcode.New(errcode.ERR2023.Code, errcode.ERR2023.Message)
 }
 
 func (s *OAuthProviderService) matchOrCreateOAuthUser(provider config.OAuthProviderConfig, claims *OAuthUserClaims) (*model.User, error) {
@@ -1985,25 +1945,42 @@ func (s *OAuthProviderService) ConfirmOAuthBinding(bindingTicket, username, pass
 		return "", false, "", errcode.New(errcode.ERR2002.Code, errcode.ERR2002.Message)
 	}
 
+	createUser := strings.TrimSpace(username) == "" && password == ""
 	var user model.User
-	has, err := s.db.Where("username = ? and status > 0", strings.TrimSpace(username)).Get(&user)
-	if err != nil {
-		return "", false, "", err
-	}
-	if !has {
-		return "", false, "", errcode.New(errcode.ERR1002.Code, errcode.ERR1002.Message)
-	}
-	if !util.PasswordVerify(password, user.Password) {
-		return "", false, "", errcode.New(errcode.ERR1003.Code, errcode.ERR1003.Message)
+	if createUser {
+		if !provider.AutoCreateUser {
+			return "", false, "", errcode.New(errcode.ERR2023.Code, errcode.ERR2023.Message)
+		}
+	} else {
+		has, err := s.db.Where("username = ? and status > 0", strings.TrimSpace(username)).Get(&user)
+		if err != nil {
+			return "", false, "", err
+		}
+		if !has {
+			return "", false, "", errcode.New(errcode.ERR1002.Code, errcode.ERR1002.Message)
+		}
+		if !util.PasswordVerify(password, user.Password) {
+			return "", false, "", errcode.New(errcode.ERR1003.Code, errcode.ERR1003.Message)
+		}
 	}
 	clientFlow := binding.PollToken != ""
-	if clientFlow && user.IsAdmin {
+	if !createUser && clientFlow && user.IsAdmin {
 		return "", false, "", errcode.New(errcode.ERR2203.Code, errcode.ERR2203.Message)
 	}
 
 	updated, err := s.db.ID(sessionID).Where("status = 1 and expires_at > ?", time.Now()).Cols("status").Update(&model.OAuthLoginSession{Status: 0})
 	if err != nil || updated != 1 {
 		return "", false, "", errcode.New(errcode.ERR2008.Code, errcode.ERR2008.Message)
+	}
+	if createUser {
+		createProvider := provider
+		createProvider.BindByEmail = false
+		createProvider.AutoCreateUser = true
+		created, createErr := s.matchOrCreateOAuthUser(createProvider, &binding.Claims)
+		if createErr != nil {
+			return "", false, "", createErr
+		}
+		user = *created
 	}
 
 	account := &model.OAuthAccount{
