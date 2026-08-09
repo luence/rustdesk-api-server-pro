@@ -8,6 +8,7 @@ import { request } from '@/service/request';
 const appStore = useAppStore();
 const loading = ref(false);
 const clearing = ref(false);
+const killingId = ref<number | null>(null);
 const data = ref<any[]>([]);
 const total = ref(0);
 const currentPage = ref(1);
@@ -48,12 +49,12 @@ const columns = [
     align: 'center' as const,
     render: (row: any) => (
       <NSpace size="small" justify="center">
-        <NPopconfirm onPositiveClick={() => handleKill(row)}>
+        <NPopconfirm disabled={row.is_current} onPositiveClick={() => handleKill(row)}>
           {{
             default: () => $t('common.confirmDelete'),
             trigger: () => (
-              <NButton type="error" size="small" quaternary>
-                {$t('page.user.sessions.kill')}
+              <NButton type="error" size="small" quaternary disabled={row.is_current} loading={killingId.value === row.id}>
+                {row.is_current ? '当前 Token' : $t('page.user.sessions.kill')}
               </NButton>
             )
           }}
@@ -80,10 +81,16 @@ async function loadData() {
 }
 
 async function handleKill(row: any) {
-  const { error } = await request({ url: '/tokens/kill', method: 'post', data: { ids: [row.id] } });
-  if (!error) {
-    window.$message?.success($t('common.deleteSuccess'));
-    loadData();
+  if (row.is_current || killingId.value !== null) return;
+  try {
+    killingId.value = row.id;
+    const { error } = await request({ url: '/tokens/kill', method: 'post', data: { ids: [row.id] } });
+    if (!error) {
+      window.$message?.success($t('common.deleteSuccess'));
+      await loadData();
+    }
+  } finally {
+    killingId.value = null;
   }
 }
 

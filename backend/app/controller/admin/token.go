@@ -48,7 +48,9 @@ func (c *TokenController) HandleList() mvc.Result {
 	}
 
 	list := make([]iris.Map, 0, len(tokenList))
+	currentToken := c.GetAuthToken()
 	for _, t := range tokenList {
+		isCurrent := currentToken != nil && currentToken.Id == t.AuthToken.Id
 		list = append(list, iris.Map{
 			"id":          t.AuthToken.Id,
 			"user_id":     t.AuthToken.UserId,
@@ -63,6 +65,7 @@ func (c *TokenController) HandleList() mvc.Result {
 			"status":      t.AuthToken.Status,
 			"expired":     t.AuthToken.Expired.Format(config.TimeFormat),
 			"created_at":  t.AuthToken.CreatedAt.Format(config.TimeFormat),
+			"is_current":  isCurrent,
 		})
 	}
 

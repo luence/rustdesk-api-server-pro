@@ -312,6 +312,7 @@ declare namespace Api {
       device_name: string;
       token_hash: string;
       is_admin: boolean;
+      is_current: boolean;
       status: number;
       expired: string;
     }>;

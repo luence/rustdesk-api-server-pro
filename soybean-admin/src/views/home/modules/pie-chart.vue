@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { $t } from '@/locales';
 import { useEcharts } from '@/hooks/common/echarts';
 import { fetchPieCharts } from '@/service/api/home';
@@ -12,12 +12,16 @@ defineOptions({
 const appStore = useAppStore();
 const isNarrow = ref(false);
 const isUltraNarrow = ref(false);
+const chartContainerRef = ref<HTMLElement | null>(null);
 const chartData = ref<Api.Home.PieChart[]>([]);
+let resizeObserver: ResizeObserver | null = null;
+
+const chartHeight = computed(() => (isUltraNarrow.value ? 220 : isNarrow.value ? 260 : 320));
 
 function updateIsNarrow() {
-  if (typeof window === 'undefined') return;
-  isNarrow.value = window.innerWidth < 1400;
-  isUltraNarrow.value = window.innerWidth < 420;
+  const width = chartContainerRef.value?.clientWidth || window.innerWidth;
+  isNarrow.value = width < 520;
+  isUltraNarrow.value = width < 360;
 }
 
 function ellipsisLabel(name: string) {
@@ -78,14 +82,15 @@ function renderChart(dataList: Api.Home.PieChart[] = []) {
     const data = (dataList || []).filter(item => Number(item?.value || 0) > 0);
     const hasData = data.length > 0;
     const titleText = $t('page.home.operatingSystem');
-    const centerX = isUltraNarrow.value ? '50%' : isNarrow.value ? '54%' : '50%';
-    const centerY = isNarrow.value ? '40%' : '44%';
+    const showOuterLabel = hasData && data.length > 1 && !isNarrow.value;
+    const centerX = '50%';
+    const centerY = isNarrow.value ? '45%' : '46%';
     const radius = isUltraNarrow.value
-      ? (['32%', '54%'] as [string, string])
+      ? (['30%', '50%'] as [string, string])
       : isNarrow.value
-        ? (['30%', '52%'] as [string, string])
-        : (['42%', '68%'] as [string, string]);
-    const legendBottom = isNarrow.value ? 2 : 8;
+        ? (['32%', '55%'] as [string, string])
+        : (['34%', '60%'] as [string, string]);
+    const legendBottom = isUltraNarrow.value ? 0 : 4;
 
     (opt as any).title = {
       ...(opt as any).title,
@@ -134,7 +139,7 @@ function renderChart(dataList: Api.Home.PieChart[] = []) {
           }
         },
         label: {
-          show: hasData && !isUltraNarrow.value,
+          show: showOuterLabel,
           formatter: ({ name }: { name: string }) => compactSideLabel(name),
           width: isNarrow.value ? 72 : 120,
           overflow: 'truncate',
@@ -144,7 +149,7 @@ function renderChart(dataList: Api.Home.PieChart[] = []) {
           bleedMargin: isNarrow.value ? 6 : undefined
         },
         labelLine: {
-          show: hasData && !isUltraNarrow.value,
+          show: showOuterLabel,
           length: isNarrow.value ? 6 : 14,
           length2: isNarrow.value ? 6 : 12
         },
@@ -165,16 +170,16 @@ async function init() {
   updateIsNarrow();
   await fetchChartsData();
 }
-// init
-init();
-
 onMounted(() => {
   updateIsNarrow();
-  window.addEventListener('resize', updateIsNarrow);
+  resizeObserver = new ResizeObserver(updateIsNarrow);
+  if (chartContainerRef.value) resizeObserver.observe(chartContainerRef.value);
+  init();
 });
 
 onUnmounted(() => {
-  window.removeEventListener('resize', updateIsNarrow);
+  resizeObserver?.disconnect();
+  resizeObserver = null;
 });
 
 watch(
@@ -195,8 +200,16 @@ watch(isUltraNarrow, () => {
 
 <template>
   <NCard :bordered="false" class="card-wrapper">
-    <div ref="domRef" class="h-360px overflow-hidden"></div>
+    <div ref="chartContainerRef" class="chart-container">
+      <div ref="domRef" class="w-full" :style="{ height: `${chartHeight}px` }"></div>
+    </div>
   </NCard>
 </template>
 
-<style scoped></style>
+<style scoped>
+.chart-container {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+</style>
