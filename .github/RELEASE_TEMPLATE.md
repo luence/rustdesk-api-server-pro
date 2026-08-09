@@ -1,7 +1,9 @@
 # RustDesk API Server Pro {tag}
 
-发布日期：{date}  
-版本：`{version}`  
+发布日期：{date}
+
+版本：`{version}`
+
 来源提交：`{commit}`
 
 ## 本次发布
