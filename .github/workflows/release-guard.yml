@@ -83,6 +83,10 @@ jobs:
           grep -q "cp SECURITY.md build/" .github/workflows/build-release.yml
           grep -q "cp PRIVACY.md build/" .github/workflows/build-release.yml
           grep -q "cp COMPLIANCE.md build/" .github/workflows/build-release.yml
+          test -f .github/RELEASE_TEMPLATE.md
+          grep -q "tag_name:" .github/workflows/build-release.yml
+          grep -q "target_ref:" .github/workflows/build-release.yml
+          grep -q "body_path: release-body.md" .github/workflows/build-release.yml
 
       - name: 检查非官方声明
         shell: bash

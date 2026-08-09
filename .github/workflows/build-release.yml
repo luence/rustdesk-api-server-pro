@@ -3,18 +3,91 @@ run-name: 发布构建（${{ github.ref_name || github.sha }}）
 
 on:
   workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "发布标签；留空时读取 VERSION 并生成 vX.Y.Z"
+        required: false
+        type: string
+      target_ref:
+        description: "构建来源分支或提交"
+        required: true
+        default: "main"
+        type: string
+      release_title:
+        description: "发布标题；留空时使用默认标题"
+        required: false
+        type: string
+      prerelease:
+        description: "标记为预发布版本"
+        required: false
+        default: false
+        type: boolean
   push:
     tags:
       - "v*.*.*"
 
 permissions:
-  contents: write
+  contents: read
   
 jobs:
-  build:
+  prepare:
     runs-on: ubuntu-latest
     outputs:
-      tag_name: ${{ steps.tag.outputs.tag_name }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      target_sha: ${{ steps.release.outputs.target_sha }}
+      release_title: ${{ steps.release.outputs.release_title }}
+      prerelease: ${{ steps.release.outputs.prerelease }}
+    steps:
+      - name: 检出发布来源
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.target_ref || github.ref }}
+
+      - name: 校验发布参数
+        id: release
+        shell: bash
+        env:
+          INPUT_TAG: ${{ inputs.tag_name }}
+          INPUT_TITLE: ${{ inputs.release_title }}
+          INPUT_PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          set -euo pipefail
+          version="$(tr -d '[:space:]' < VERSION)"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            tag_name="${GITHUB_REF_NAME}"
+          else
+            tag_name="${INPUT_TAG:-v${version}}"
+          fi
+          [[ "$tag_name" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]] || {
+            echo "标签格式无效: $tag_name" >&2
+            exit 1
+          }
+          if [[ "$tag_name" != "v${version}" && "$tag_name" != "v${version}-"* && "$tag_name" != "v${version}."* ]]; then
+            echo "标签 $tag_name 与 VERSION=$version 不一致" >&2
+            exit 1
+          fi
+          release_title="${INPUT_TITLE:-RustDesk API Server Pro（${tag_name}）}"
+          [[ "$release_title" != *$'\n'* && "$release_title" != *$'\r'* ]] || {
+            echo "发布标题不能包含换行符" >&2
+            exit 1
+          }
+          target_sha="$(git rev-parse HEAD)"
+          existing_tag="$(git ls-remote origin "refs/tags/${tag_name}^{}" | awk 'NR == 1 {print $1}')"
+          if [[ -z "$existing_tag" ]]; then
+            existing_tag="$(git ls-remote origin "refs/tags/${tag_name}" | awk 'NR == 1 {print $1}')"
+          fi
+          if [[ -n "$existing_tag" && "$existing_tag" != "$target_sha" ]]; then
+            echo "标签 $tag_name 已指向 $existing_tag，不能改写为 $target_sha" >&2
+            exit 1
+          fi
+          echo "tag_name=$tag_name" >> "$GITHUB_OUTPUT"
+          echo "target_sha=$target_sha" >> "$GITHUB_OUTPUT"
+          echo "release_title=$release_title" >> "$GITHUB_OUTPUT"
+          echo "prerelease=${INPUT_PRERELEASE:-false}" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         os: [linux, windows, darwin]
@@ -22,6 +95,8 @@ jobs:
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.target_sha }}
 
       - name: 配置 Node.js
         uses: actions/setup-node@v4
@@ -39,16 +114,6 @@ jobs:
           go-version: '>=1.23.1'
           cache: false
 
-      - name: 提取标签
-        id: tag
-        run: |
-          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
-            echo "tag_name=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
-          else
-            VERSION=$(cat VERSION | tr -d '[:space:]')
-            echo "tag_name=v${VERSION}" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: 记录构建时间
         id: build_time
         run: echo "value=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
@@ -61,9 +126,9 @@ jobs:
       
       - name: 编译项目
         env:
-          VITE_APP_VERSION: ${{ steps.tag.outputs.tag_name || github.ref_name }}
+          VITE_APP_VERSION: ${{ needs.prepare.outputs.tag_name }}
           VITE_BUILD_TIME: ${{ steps.build_time.outputs.value }}
-          APP_VERSION: ${{ steps.tag.outputs.tag_name || github.ref_name }}
+          APP_VERSION: ${{ needs.prepare.outputs.tag_name }}
           BUILD_TIME: ${{ steps.build_time.outputs.value }}
         run: |
           go env -w GOOS=${{matrix.os}}
@@ -100,37 +165,42 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/')
+    needs: [prepare, build]
+    permissions:
+      contents: write
     steps:
+      - name: 检出发布模板
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.target_sha }}
+
       - name: 下载全部构建产物
         uses: actions/download-artifact@v4
         with:
           path: release-assets
           merge-multiple: true
 
+      - name: 生成发布文案
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag_name }}
+          RELEASE_SHA: ${{ needs.prepare.outputs.target_sha }}
+        run: |
+          set -euo pipefail
+          cp .github/RELEASE_TEMPLATE.md release-body.md
+          sed -i "s|{tag}|${RELEASE_TAG}|g" release-body.md
+          sed -i "s|{version}|${RELEASE_TAG#v}|g" release-body.md
+          sed -i "s|{commit}|${RELEASE_SHA}|g" release-body.md
+          sed -i "s|{date}|$(date -u '+%Y-%m-%d')|g" release-body.md
+
       - name: 创建发布
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.build.outputs.tag_name }}
-          name: RustDesk API Server Pro（${{ needs.build.outputs.tag_name }}）
+          tag_name: ${{ needs.prepare.outputs.tag_name }}
+          target_commitish: ${{ needs.prepare.outputs.target_sha }}
+          name: ${{ needs.prepare.outputs.release_title }}
+          prerelease: ${{ needs.prepare.outputs.prerelease }}
+          make_latest: ${{ needs.prepare.outputs.prerelease != 'true' }}
           generate_release_notes: false
-          body: |
-            本次发布重新生成 RustDesk API Server Pro 部署包。
-
-            主要内容：
-            - 生成 Linux、Windows、macOS 的 amd64 和 arm64 部署包。
-            - 部署包包含后端二进制、管理后台 dist、示例配置、Docker/OpenWrt 文档以及许可证/合规声明文件。
-            - Docker 镜像发布工作流会在 tag 发布时同步推送 GHCR `latest`、版本标签和 sha 标签。
-            - 本项目是独立兼容实现，不是 RustDesk、Huawei、HarmonyOS、OpenHarmony 或其他第三方厂商的官方项目。
-
-            合规提示：
-            - 本项目使用 AGPL-3.0。若修改后通过网络向用户提供服务，应按 AGPL-3.0 提供对应源码。
-            - 发布包中不应包含生产数据库、生产 server.yaml、OAuth 密钥、SMTP 密码、日志、录屏文件或其他敏感数据。
-            - 第三方组件、商标、隐私、安全和发布合规说明见仓库中的 `NOTICE`、`THIRD_PARTY_NOTICES.md`、`DISCLAIMER.md`、`SECURITY.md`、`PRIVACY.md`、`COMPLIANCE.md`。
-
-            升级提示：
-            - 请同时替换后端程序和管理后台 dist 静态资源，并重启服务。
-            - Docker 镜像启动脚本会自动执行数据库同步；二进制部署请手动执行 `sync`。
-            - 浏览器仍显示旧更新日志或旧按钮时，请强制刷新页面或清理缓存后再确认。
+          body_path: release-body.md
           files: release-assets/*.zip

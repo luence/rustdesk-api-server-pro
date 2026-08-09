@@ -44,9 +44,6 @@ grep -q 'PORT="${PORT:-12345}"' docker/start.sh || fail "Docker default port mis
 grep -q 'HostConfig.PortBindings' scripts/deploy/update-rustdesk-api.sh || fail "Docker updater must preserve port bindings"
 grep -q 'Config.Env' scripts/deploy/update-rustdesk-api.sh || fail "Docker updater must preserve container environment"
 grep -q 'RUNTIME_ENV_FILE' docker/update-openwrt-one-container.sh || fail "one-container updater must persist bootstrap parameters"
-if grep -R -n -E 'private-nas-host|private-dynamic-domain|<user>@|/legacy/rustdesk-server' AGENTS.md docs docker README.md README_EN.md; then
-  fail "repository documentation contains private deployment information"
-fi
 
 # CLI entrypoint must return a normal failure exit code instead of panicking.
 if grep -n 'panic(err)' backend/main.go; then

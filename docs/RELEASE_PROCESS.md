@@ -44,6 +44,24 @@ git tag v1.1.17
 git push origin v1.1.17
 ```
 
+## 手动构建并发布版本包
+
+仓库维护者可在 GitHub Actions 中打开“构建并发布版本”，点击“Run workflow”并填写：
+
+- `tag_name`：发布标签，例如 `v1.2.60`；留空时自动读取 `VERSION`。
+- `target_ref`：构建来源，默认 `main`，也可填写明确提交 SHA。
+- `release_title`：可选的发布标题；留空时生成标准标题。
+- `prerelease`：是否标记为预发布版本。
+
+工作流会先校验标签格式及其与 `VERSION` 的一致性，再执行以下步骤：
+
+1. 针对 Linux、Windows、macOS 构建 amd64 和 arm64 包。
+2. 上传六个 ZIP 构建产物。
+3. 使用 `.github/RELEASE_TEMPLATE.md` 生成中文发布文案。
+4. 创建标签和 GitHub Release，并附加所有 ZIP 文件。
+
+手动发布无需预先创建标签。如果标签或 Release 已存在，重新运行前应先确认目标版本和附件是否允许覆盖。
+
 ## Expected Workflows
 
 Tag push should trigger:
