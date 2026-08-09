@@ -26,6 +26,32 @@ type DashboardController struct {
 	Cfg *config.ServerConfig
 }
 
+type saveLoginCaptchaConfigRequest struct {
+	Enabled bool `json:"enabled"`
+}
+
+// GetDashboardLoginCaptchaConfig 返回登录验证码配置。
+func (c *DashboardController) GetDashboardLoginCaptchaConfig() mvc.Result {
+	return c.Success(iris.Map{"enabled": !c.Cfg.DisableLoginCaptcha}, "ok")
+}
+
+// PostDashboardLoginCaptchaConfig 保存登录验证码配置。
+func (c *DashboardController) PostDashboardLoginCaptchaConfig() mvc.Result {
+	user := c.GetUser()
+	if user == nil || !user.IsAdmin {
+		return c.Error(nil, errcode.New(errcode.ERR1010.Code, errcode.ERR1010.Message).Error())
+	}
+	var req saveLoginCaptchaConfigRequest
+	if err := c.Ctx.ReadJSON(&req); err != nil {
+		return c.Error(nil, errcode.New(errcode.ERRA006.Code, errcode.ERRA006.Message).Error())
+	}
+	c.Cfg.DisableLoginCaptcha = !req.Enabled
+	if err := config.SaveServerConfig(c.Cfg); err != nil {
+		return c.Error(nil, errcode.New(errcode.ERRA007.Code, errcode.ERRA007.Message).Error())
+	}
+	return c.Success(iris.Map{"enabled": req.Enabled}, "ok")
+}
+
 func (c *DashboardController) GetDashboardStat() mvc.Result {
 
 	userCount, err := c.Db.Count(&model.User{})
@@ -656,9 +682,9 @@ func probeHTTPServer(value string) iris.Map {
 	_ = resp.Body.Close()
 
 	return iris.Map{
-		"status":  "ok",
-		"message": fmt.Sprintf("http %d", resp.StatusCode),
-		"target":  target,
+		"status":     "ok",
+		"message":    fmt.Sprintf("http %d", resp.StatusCode),
+		"target":     target,
 		"durationMs": time.Since(start).Milliseconds(),
 	}
 }

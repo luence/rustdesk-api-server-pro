@@ -26,3 +26,11 @@ export function fetchServerConnectivity(target?: 'idServer' | 'relayServer' | 'a
 export function fetchSaveServerConfig(data: { idServer: string; relayServer: string; apiServer: string; key: string }) {
   return request<any>({ url: '/dashboard/server/config', method: 'post', data });
 }
+
+export function fetchLoginCaptchaConfig() {
+  return request<{ enabled: boolean }>({ url: '/dashboard/login/captcha/config' });
+}
+
+export function fetchSaveLoginCaptchaConfig(enabled: boolean) {
+  return request<{ enabled: boolean }>({ url: '/dashboard/login/captcha/config', method: 'post', data: { enabled } });
+}

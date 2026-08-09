@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router';
 import { $t } from '@/locales';
 import { useNaiveForm } from '@/hooks/common/form';
 import { useAuthStore } from '@/store/modules/auth';
-import { fetchCaptcha, fetchConfirmClientWebauth, fetchOAuthLoginUrl, fetchOAuthProviders } from '@/service/api/auth';
+import { fetchCaptcha, fetchConfirmClientWebauth, fetchLoginConfig, fetchOAuthLoginUrl, fetchOAuthProviders } from '@/service/api/auth';
 
 defineOptions({
   name: 'PwdLogin'
@@ -17,13 +17,11 @@ const oauthProviders = ref<Api.Auth.OAuthProvider[]>([]);
 const activeProvider = ref('');
 const clientWebauthCompleted = ref(false);
 const clientWebauthLoading = ref(false);
+const captchaEnabled = ref(true);
 const clientPollToken = computed(() => {
   if (route.name !== 'client-webauth') return '';
   return typeof route.query.poll_token === 'string' ? route.query.poll_token : '';
 });
-const clientCallbackUrl = computed(() =>
-  clientPollToken.value ? `rustdesk://oauth/callback?poll_token=${encodeURIComponent(clientPollToken.value)}` : ''
-);
 
 const model: Api.Form.LoginForm = reactive({
   username: '',
@@ -51,18 +49,12 @@ const rules = computed<Record<keyof Api.Form.LoginForm, App.Global.FormRule[]>>(
         message: $t('page.user.list.inputPassword')
       }
     ],
-    code: [
-      {
-        required: true,
-        message: $t('page.login.common.codePlaceholder')
-      }
-    ],
-    captchaId: [
-      {
-        required: true,
-        message: $t('page.login.common.codePlaceholder')
-      }
-    ]
+    code: captchaEnabled.value
+      ? [{ required: true, message: $t('page.login.common.codePlaceholder') }]
+      : [],
+    captchaId: captchaEnabled.value
+      ? [{ required: true, message: $t('page.login.common.codePlaceholder') }]
+      : []
   };
 });
 
@@ -91,7 +83,7 @@ async function handleSubmit() {
 }
 
 function launchRustDesk() {
-  if (clientCallbackUrl.value) window.location.href = clientCallbackUrl.value;
+  window.location.href = 'rustdesk://';
 }
 
 function closeClientWebauthPage() {
@@ -99,6 +91,7 @@ function closeClientWebauthPage() {
 }
 
 async function handleCaptcha() {
+  if (!captchaEnabled.value) return;
   const c = await fetchCaptcha();
   captcha.id = c.data?.id || '';
   captcha.img = c.data?.img || '';
@@ -145,7 +138,10 @@ function providerIcon(type: string) {
 }
 
 onMounted(() => {
-  handleCaptcha();
+  fetchLoginConfig().then(({ data }) => {
+    captchaEnabled.value = data?.captchaEnabled !== false;
+    if (captchaEnabled.value) handleCaptcha();
+  });
   if (!clientPollToken.value) loadOAuthProviders();
 });
 </script>
@@ -175,7 +171,7 @@ onMounted(() => {
         :placeholder="$t('page.login.common.passwordPlaceholder')"
       />
     </NFormItem>
-    <NFormItem path="code">
+    <NFormItem v-if="captchaEnabled" path="code">
       <NInput v-model:value="model.code" :clearable="true" :placeholder="$t('page.login.common.codePlaceholder')" />
       <div class="flex-shrink-0 pl-8px">
         <img

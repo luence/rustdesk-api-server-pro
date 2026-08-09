@@ -29,6 +29,7 @@ func (c *AuthController) BeforeActivation(b mvc.BeforeActivation) {
 	b.Handle("GET", "/auth/oauth/token", "GetAuthOauthToken")
 	b.Handle("GET", "/auth/oauth/{provider:string}/callback", "HandleOauthCallback")
 	b.Handle("POST", "/auth/client-webauth/confirm", "PostClientWebauthConfirm")
+	b.Handle("GET", "/auth/login-config", "GetAuthLoginConfig")
 	b.Handle("POST", "/auth/webauthn/login/begin", "PostWebauthnLoginBegin")
 	b.Handle("POST", "/auth/webauthn/login/finish", "PostWebauthnLoginFinish")
 	b.Handle("GET", "/auth/webauthn/enabled", "GetWebauthnEnabled")
@@ -50,7 +51,7 @@ func (c *AuthController) PostClientWebauthConfirm() mvc.Result {
 	if strings.TrimSpace(form.PollToken) == "" {
 		return c.Error(nil, errcode.New(errcode.ERR2205.Code, errcode.ERR2205.Message).Error())
 	}
-	if !captcha.VerifyCode(form.CaptchaId, form.Code) {
+	if !c.Cfg.DisableLoginCaptcha && !captcha.VerifyCode(form.CaptchaId, form.Code) {
 		c.recordAdminLoginAudit(0, form.Username, false, "client_webauth: CaptchaError")
 		return c.Error(nil, errcode.New(errcode.ERR1001.Code, errcode.ERR1001.Message).Error())
 	}
@@ -83,7 +84,7 @@ func (c *AuthController) PostAuthLogin() mvc.Result {
 		return c.dbError(err)
 	}
 
-	if !captcha.VerifyCode(loginForm.CaptchaId, loginForm.Code) {
+	if !c.Cfg.DisableLoginCaptcha && !captcha.VerifyCode(loginForm.CaptchaId, loginForm.Code) {
 		c.recordAdminLoginAudit(0, loginForm.Username, false, "CaptchaError")
 		return c.Error(nil, errcode.New(errcode.ERR1001.Code, errcode.ERR1001.Message).Error())
 	}
@@ -156,6 +157,11 @@ func (c *AuthController) GetAuthCaptcha() mvc.Result {
 		"id":  id,
 		"img": img,
 	}, "ok")
+}
+
+// GetAuthLoginConfig 返回登录页所需的公开安全配置。
+func (c *AuthController) GetAuthLoginConfig() mvc.Result {
+	return c.Success(iris.Map{"captchaEnabled": !c.Cfg.DisableLoginCaptcha}, "ok")
 }
 
 func (c *AuthController) GetAuthOidcUrl() mvc.Result {

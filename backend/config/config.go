@@ -18,22 +18,23 @@ var (
 )
 
 type ServerConfig struct {
-	DebugMode       bool                `yaml:"debugMode"`
-	Db              *DbConfig           `yaml:"db"`
-	SignKey         string              `yaml:"signKey"`
-	HttpConfig      *HttpConfig         `yaml:"httpConfig"`
-	SmtpConfig      *SmtpConfig         `yaml:"smtpConfig"`
-	JobsConfig      *JobsConfig         `yaml:"jobsConfig"`
-	OIDC            *OIDCConfig         `yaml:"oidc"`
-	OAuth           *OAuthConfig        `yaml:"oauth"`
-	WebAuthn        *WebAuthnConfig     `yaml:"webauthn"`
-	RustdeskServer  *RustdeskServerConfig `yaml:"rustdeskServer"`
+	DebugMode           bool                  `yaml:"debugMode"`
+	DisableLoginCaptcha bool                  `yaml:"disableLoginCaptcha"`
+	Db                  *DbConfig             `yaml:"db"`
+	SignKey             string                `yaml:"signKey"`
+	HttpConfig          *HttpConfig           `yaml:"httpConfig"`
+	SmtpConfig          *SmtpConfig           `yaml:"smtpConfig"`
+	JobsConfig          *JobsConfig           `yaml:"jobsConfig"`
+	OIDC                *OIDCConfig           `yaml:"oidc"`
+	OAuth               *OAuthConfig          `yaml:"oauth"`
+	WebAuthn            *WebAuthnConfig       `yaml:"webauthn"`
+	RustdeskServer      *RustdeskServerConfig `yaml:"rustdeskServer"`
 }
 
 type WebAuthnConfig struct {
-	Enabled  bool     `yaml:"enabled"`
-	RPID     string   `yaml:"rpId"`
-	RPName   string   `yaml:"rpName"`
+	Enabled   bool     `yaml:"enabled"`
+	RPID      string   `yaml:"rpId"`
+	RPName    string   `yaml:"rpName"`
 	RPOrigins []string `yaml:"rpOrigins"`
 }
 

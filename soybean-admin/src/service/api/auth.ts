@@ -23,6 +23,10 @@ export function fetchCaptcha() {
   return request<Api.Auth.Captcha>({ url: '/auth/captcha' });
 }
 
+export function fetchLoginConfig() {
+  return request<{ captchaEnabled: boolean }>({ url: '/auth/login-config' });
+}
+
 export function fetchConfirmClientWebauth(pollToken: string, model: Api.Form.LoginForm) {
   return request<{ ok: boolean }>({
     url: '/auth/client-webauth/confirm',

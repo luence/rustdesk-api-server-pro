@@ -3,7 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { $t } from '@/locales';
 import { useNaiveForm } from '@/hooks/common/form';
-import { fetchCaptcha, fetchUserLogin } from '@/service/api/auth';
+import { fetchCaptcha, fetchLoginConfig, fetchUserLogin } from '@/service/api/auth';
 import { localStg } from '@/utils/storage';
 import { useAuthStore } from '@/store/modules/auth';
 import { useRouteStore } from '@/store/modules/route';
@@ -17,6 +17,7 @@ const authStore = useAuthStore();
 const routeStore = useRouteStore();
 const { formRef, validate } = useNaiveForm();
 const loading = ref(false);
+const captchaEnabled = ref(true);
 
 const model: Api.Form.LoginForm = reactive({
   username: '',
@@ -44,18 +45,12 @@ const rules = computed<Record<keyof Api.Form.LoginForm, App.Global.FormRule[]>>(
         message: $t('page.user.list.inputPassword')
       }
     ],
-    code: [
-      {
-        required: true,
-        message: $t('page.login.common.codePlaceholder')
-      }
-    ],
-    captchaId: [
-      {
-        required: true,
-        message: $t('page.login.common.codePlaceholder')
-      }
-    ]
+    code: captchaEnabled.value
+      ? [{ required: true, message: $t('page.login.common.codePlaceholder') }]
+      : [],
+    captchaId: captchaEnabled.value
+      ? [{ required: true, message: $t('page.login.common.codePlaceholder') }]
+      : []
   };
 });
 
@@ -87,6 +82,7 @@ async function handleSubmit() {
 }
 
 async function handleCaptcha() {
+  if (!captchaEnabled.value) return;
   const c = await fetchCaptcha();
   captcha.id = c.data?.id || '';
   captcha.img = c.data?.img || '';
@@ -98,7 +94,10 @@ function switchToAdmin() {
 }
 
 onMounted(() => {
-  handleCaptcha();
+  fetchLoginConfig().then(({ data }) => {
+    captchaEnabled.value = data?.captchaEnabled !== false;
+    if (captchaEnabled.value) handleCaptcha();
+  });
 });
 </script>
 
@@ -115,7 +114,7 @@ onMounted(() => {
         :placeholder="$t('page.login.common.passwordPlaceholder')"
       />
     </NFormItem>
-    <NFormItem path="code">
+    <NFormItem v-if="captchaEnabled" path="code">
       <NInput v-model:value="model.code" :clearable="true" :placeholder="$t('page.login.common.codePlaceholder')" />
       <div class="flex-shrink-0 pl-8px">
         <img

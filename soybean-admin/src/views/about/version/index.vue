@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import { getBuildTime, getVersionTag } from '@/utils/version';
 import { $t } from '@/locales';
 import { useAuthStore } from '@/store/modules/auth';
+import { fetchLoginCaptchaConfig, fetchSaveLoginCaptchaConfig } from '@/service/api/home';
 
 const defaultCheckUrl = 'https://raw.githubusercontent.com/liyan-lucky/rustdesk-api-server-pro/main/VERSION';
 const storageKey = 'rustdesk-api-update-check-url';
@@ -18,6 +19,8 @@ const latestVersion = ref('');
 const compatVersion = ref('');
 const checking = ref(false);
 const errorMessage = ref('');
+const captchaEnabled = ref(true);
+const captchaConfigLoading = ref(false);
 const hasUpdate = computed(() => latestVersion.value && compareVersions(latestVersion.value, runningVersion.value) > 0);
 const resolvedUpdateCommand = computed(() =>
   commandTemplate.value.replaceAll('{version}', latestVersion.value || runningVersion.value)
@@ -101,6 +104,26 @@ function restoreDefaultCommand() {
   localStorage.setItem(commandStorageKey, defaultCommandTemplate);
 }
 
+async function loadLoginCaptchaConfig() {
+  if (!isAdmin.value) return;
+  const { data } = await fetchLoginCaptchaConfig();
+  captchaEnabled.value = data?.enabled !== false;
+}
+
+async function saveLoginCaptchaConfig(enabled: boolean) {
+  captchaConfigLoading.value = true;
+  try {
+    const { error } = await fetchSaveLoginCaptchaConfig(enabled);
+    if (error) {
+      captchaEnabled.value = !enabled;
+      return;
+    }
+    window.$message?.success($t('common.updateSuccess'));
+  } finally {
+    captchaConfigLoading.value = false;
+  }
+}
+
 async function copyUpdateCommand(value = resolvedUpdateCommand.value) {
   try {
     await navigator.clipboard.writeText(value);
@@ -118,6 +141,7 @@ async function copyUpdateCommand(value = resolvedUpdateCommand.value) {
 onMounted(() => {
   loadRuntimeVersion();
   checkUpdate();
+  loadLoginCaptchaConfig();
 });
 </script>
 
@@ -171,6 +195,19 @@ onMounted(() => {
           <NButton @click="restoreDefaultCommand">{{ $t('page.about.restoreDefault') }}</NButton>
         </NSpace>
       </NSpace>
+    </NCard>
+    <NCard v-if="isAdmin" title="登录安全" :bordered="false">
+      <div class="flex-y-center justify-between">
+        <div>
+          <div class="font-medium">登录验证码</div>
+          <div class="mt-4px text-13px text-gray-500">控制后台、用户和客户端 WebAuth 密码登录时是否验证验证码。</div>
+        </div>
+        <NSwitch
+          v-model:value="captchaEnabled"
+          :loading="captchaConfigLoading"
+          @update:value="saveLoginCaptchaConfig"
+        />
+      </div>
     </NCard>
   </NSpace>
 </template>
