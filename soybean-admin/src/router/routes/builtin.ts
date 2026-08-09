@@ -38,6 +38,16 @@ export function createBuiltinVueRoutes() {
         constant: true,
         hideInMenu: true
       }
+    },
+    {
+      name: 'client-oauth-result',
+      path: '/client-oauth-result',
+      component: () => import('@/components/business/client-oauth-result-page.vue'),
+      meta: {
+        title: 'client-oauth-result',
+        constant: true,
+        hideInMenu: true
+      }
     }
   ];
 }

@@ -294,9 +294,7 @@ func (c *OAuthController) currentBaseURL() string {
 }
 
 func (c *OAuthController) oauthCallbackPage(success bool, errorCode, pollToken string) mvc.Result {
-	html := httpdto.OAuthCallbackPage(success, errorCode, pollToken)
-	c.Ctx.ContentType("text/html; charset=utf-8")
-	_, _ = c.Ctx.WriteString(html)
+	c.Ctx.Redirect(httpdto.OAuthCallbackURL(success, errorCode), iris.StatusFound)
 	return mvc.Response{}
 }
 

@@ -800,6 +800,26 @@ watch(
   align-items: center;
 }
 
+.server-config-card :deep(.n-card-header) {
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.server-config-card :deep(.n-card-header__main) {
+  min-width: 160px;
+  flex: 1 1 160px;
+}
+
+.server-config-card :deep(.n-card-header__extra) {
+  max-width: 100%;
+  min-width: 0;
+  margin-left: 0;
+}
+
+.server-config-actions {
+  justify-content: flex-end;
+}
+
 .config-label {
   font-size: 12px;
   color: var(--n-text-color-2);
@@ -927,7 +947,8 @@ watch(
   }
 
   .server-config-actions {
-    min-width: max-content;
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .config-row {

@@ -1,22 +1,25 @@
 package httpdto
 
 import (
+	"net/url"
 	"strings"
 	"testing"
 )
 
-// TestOAuthCallbackPage 验证统一页面不泄露 poll token，并转义错误信息。
-func TestOAuthCallbackPage(t *testing.T) {
-	page := OAuthCallbackPage(true, "", "sensitive-poll-token")
-	if strings.Contains(page, "sensitive-poll-token") {
-		t.Fatal("回调页面不得输出 poll token")
-	}
-	if !strings.Contains(page, "RustDesk API 服务端") || !strings.Contains(page, "rustdesk://config/") {
-		t.Fatal("成功页面缺少统一品牌或客户端返回入口")
+// TestOAuthCallbackURL 验证结果页只传递公开状态和转义后的错误码。
+func TestOAuthCallbackURL(t *testing.T) {
+	success := OAuthCallbackURL(true, "")
+	if success != "/#/client-oauth-result?status=success" {
+		t.Fatalf("成功结果页地址错误: %s", success)
 	}
 
-	failure := OAuthCallbackPage(false, `<ERR-2212>`, "")
-	if strings.Contains(failure, `<ERR-2212>`) || !strings.Contains(failure, `&lt;ERR-2212&gt;`) {
-		t.Fatal("错误码必须经过 HTML 转义")
+	failure := OAuthCallbackURL(false, `<ERR-2212>`)
+	parts := strings.SplitN(failure, "?", 2)
+	if len(parts) != 2 || parts[0] != "/#/client-oauth-result" {
+		t.Fatalf("失败结果页地址错误: %s", failure)
+	}
+	query, err := url.ParseQuery(parts[1])
+	if err != nil || query.Get("status") != "error" || query.Get("error_code") != `<ERR-2212>` {
+		t.Fatalf("失败结果页参数错误: %s", failure)
 	}
 }
